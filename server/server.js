@@ -44,7 +44,7 @@ const profileSchema = new mongoose.Schema({
     required: true,
   },
   name: { type: String, required: true },
-  department: { type: String, required: true },
+  department: { type: String, required: true, default: "IT" },
   bio: String,
   profile_pic: String,
   qualifications: String,
@@ -68,16 +68,14 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// Initial Seeding
+// Initial Seeding (Only IT Department)
 const seedDatabase = async () => {
   try {
     const userCount = await User.countDocuments();
     if (userCount === 0) {
-      console.log("Seeding initial data for SSN College of Engineering...");
+      console.log("Seeding initial data for SSN IT Faculty...");
       const hashAdmin = await bcrypt.hash("admin123", 10);
-      const hashStaff1 = await bcrypt.hash("john123", 10);
-      const hashStaff2 = await bcrypt.hash("jane456", 10);
-      const hashStaff3 = await bcrypt.hash("mike789", 10);
+      const hashStaff1 = await bcrypt.hash("mike789", 10);
 
       const admin = await new User({
         email: "admin@ssn.edu.in",
@@ -88,45 +86,13 @@ const seedDatabase = async () => {
       console.log("Seeded admin@ssn.edu.in / admin123 / 1234567890 (manager)");
 
       const staff1 = await new User({
-        email: "john.doe@ssn.edu.in",
-        password: hashStaff1,
-        phone_number: "9876543210",
-        role: "staff",
-      }).save();
-      await new Profile({
-        user_id: staff1._id,
-        name: "Dr. John Doe",
-        department: "CS",
-        bio: "Professor of Computer Science",
-      }).save();
-      console.log(
-        "Seeded john.doe@ssn.edu.in / john123 / 9876543210 (staff - CS)"
-      );
-
-      const staff2 = await new User({
-        email: "jane.smith@ssn.edu.in",
-        password: hashStaff2,
-        phone_number: "5555555555",
-        role: "staff",
-      }).save();
-      await new Profile({
-        user_id: staff2._id,
-        name: "Prof. Jane Smith",
-        department: "EE",
-        bio: "Electrical Engineering Researcher",
-      }).save();
-      console.log(
-        "Seeded jane.smith@ssn.edu.in / jane456 / 5555555555 (staff - EE)"
-      );
-
-      const staff3 = await new User({
         email: "mike.lee@ssn.edu.in",
-        password: hashStaff3,
+        password: hashStaff1,
         phone_number: "4445556666",
         role: "staff",
       }).save();
       await new Profile({
-        user_id: staff3._id,
+        user_id: staff1._id,
         name: "Dr. Mike Lee",
         department: "IT",
         bio: "Information Technology Specialist",
@@ -163,7 +129,6 @@ const authenticateToken = (req, res, next) => {
 
 // API Endpoints
 
-// Login
 app.post("/login", async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) {
@@ -198,11 +163,10 @@ app.post("/login", async (req, res) => {
   }
 });
 
-// Get All Profiles (Public)
 app.get("/profiles", async (req, res) => {
   try {
-    const profiles = await Profile.find();
-    console.log("Fetched faculty profiles:", profiles.length, profiles);
+    const profiles = await Profile.find({ department: "IT" });
+    console.log("Fetched IT faculty profiles:", profiles.length, profiles);
     res.json(profiles);
   } catch (err) {
     console.error("Fetch profiles error:", err);
@@ -212,7 +176,6 @@ app.get("/profiles", async (req, res) => {
   }
 });
 
-// Get Single Profile (Public)
 app.get("/profiles/:id", async (req, res) => {
   const { id } = req.params;
   if (!id || !mongoose.Types.ObjectId.isValid(id)) {
@@ -223,12 +186,15 @@ app.get("/profiles/:id", async (req, res) => {
   }
   try {
     const profile = await Profile.findById(id);
-    if (profile) {
-      console.log(`Fetched faculty profile ${id}:`, profile);
+    if (profile && profile.department === "IT") {
+      console.log(`Fetched IT faculty profile ${id}:`, profile);
       res.json(profile);
     } else {
-      console.log(`Faculty profile not found: ${id}`);
-      res.status(404).json({ success: false, message: "Profile not found" });
+      console.log(`IT faculty profile not found: ${id}`);
+      res.status(404).json({
+        success: false,
+        message: "Profile not found or not in IT department",
+      });
     }
   } catch (err) {
     console.error("Fetch profile error:", err);
@@ -238,7 +204,6 @@ app.get("/profiles/:id", async (req, res) => {
   }
 });
 
-// Add Faculty (Manager Only)
 app.post(
   "/profiles",
   authenticateToken,
@@ -255,7 +220,6 @@ app.post(
       password,
       phone_number,
       name,
-      department,
       bio,
       research,
       qualifications,
@@ -263,18 +227,16 @@ app.post(
     } = req.body;
     const profilePic = req.file ? `/uploads/${req.file.filename}` : null;
 
-    if (!email || !password || !phone_number || !name || !department) {
+    if (!email || !password || !phone_number || !name) {
       console.log("Missing required fields for add:", {
         email,
         password,
         phone_number,
         name,
-        department,
       });
       return res.status(400).json({
         success: false,
-        message:
-          "Email, password, phone number, name, and department are required",
+        message: "Email, password, phone number, and name are required",
       });
     }
 
@@ -290,7 +252,7 @@ app.post(
       const profile = await new Profile({
         user_id: user._id,
         name,
-        department,
+        department: "IT",
         bio,
         profile_pic: profilePic,
         research,
@@ -299,7 +261,7 @@ app.post(
       }).save();
 
       console.log(
-        `Faculty added: ${name} (ID: ${profile._id}) by ${req.user.email}`
+        `IT faculty added: ${name} (ID: ${profile._id}) by ${req.user.email}`
       );
       res.json({
         success: true,
@@ -315,7 +277,6 @@ app.post(
   }
 );
 
-// Update Profile (Staff Own or Manager)
 app.put(
   "/profiles/:id",
   authenticateToken,
@@ -328,14 +289,12 @@ app.put(
         .status(400)
         .json({ success: false, message: "Invalid profile ID" });
     }
-    const { name, department, bio, research, qualifications, experience } =
-      req.body;
+    const { name, bio, research, qualifications, experience } = req.body;
     const profilePic = req.file ? `/uploads/${req.file.filename}` : null;
 
     console.log("Update request:", {
       id,
       name,
-      department,
       bio,
       profilePic,
       research,
@@ -343,20 +302,21 @@ app.put(
       experience,
     });
 
-    if (!name || !department) {
-      console.log("Missing required fields for update:", { name, department });
+    if (!name) {
+      console.log("Missing required field: name");
       return res
         .status(400)
-        .json({ success: false, message: "Name and department are required" });
+        .json({ success: false, message: "Name is required" });
     }
 
     try {
       const profile = await Profile.findById(id);
-      if (!profile) {
-        console.log(`Faculty profile not found: ${id}`);
-        return res
-          .status(404)
-          .json({ success: false, message: "Profile not found" });
+      if (!profile || profile.department !== "IT") {
+        console.log(`IT faculty profile not found: ${id}`);
+        return res.status(404).json({
+          success: false,
+          message: "Profile not found or not in IT department",
+        });
       }
 
       if (
@@ -384,7 +344,6 @@ app.put(
       }
 
       profile.name = name;
-      profile.department = department;
       profile.bio = bio || profile.bio;
       profile.profile_pic = profilePic || profile.profile_pic;
       profile.research = research || profile.research;
@@ -392,7 +351,7 @@ app.put(
       profile.experience = experience || profile.experience;
 
       const updatedProfile = await profile.save();
-      console.log(`Faculty profile updated: ${id}`, updatedProfile);
+      console.log(`IT faculty profile updated: ${id}`, updatedProfile);
       res.json({
         success: true,
         profile: updatedProfile,
@@ -407,7 +366,6 @@ app.put(
   }
 );
 
-// Delete Profile (Manager Only)
 app.delete("/profiles/:id", authenticateToken, async (req, res) => {
   const { id } = req.params;
   if (!id || !mongoose.Types.ObjectId.isValid(id)) {
@@ -426,11 +384,12 @@ app.delete("/profiles/:id", authenticateToken, async (req, res) => {
 
   try {
     const profile = await Profile.findById(id);
-    if (!profile) {
-      console.log(`Faculty profile not found: ${id}`);
-      return res
-        .status(404)
-        .json({ success: false, message: "Profile not found" });
+    if (!profile || profile.department !== "IT") {
+      console.log(`IT faculty profile not found: ${id}`);
+      return res.status(404).json({
+        success: false,
+        message: "Profile not found or not in IT department",
+      });
     }
 
     if (
@@ -442,7 +401,7 @@ app.delete("/profiles/:id", authenticateToken, async (req, res) => {
     }
 
     await Profile.deleteOne({ _id: id });
-    console.log(`Faculty profile deleted: ${id} by ${req.user.email}`);
+    console.log(`IT faculty profile deleted: ${id} by ${req.user.email}`);
     res.json({ success: true, message: "Profile deleted successfully" });
   } catch (err) {
     console.error("Delete profile error:", err);
@@ -452,7 +411,6 @@ app.delete("/profiles/:id", authenticateToken, async (req, res) => {
   }
 });
 
-// Reset Password (Using Phone Number)
 app.post("/reset-password", async (req, res) => {
   const { phone_number, new_password } = req.body;
   if (!phone_number || !new_password) {

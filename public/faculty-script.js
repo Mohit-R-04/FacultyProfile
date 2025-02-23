@@ -13,7 +13,6 @@ const elements = {
   backBtn: document.getElementById("back-btn"),
   facultyPic: document.getElementById("faculty-pic"),
   facultyName: document.getElementById("faculty-name"),
-  facultyDept: document.getElementById("faculty-dept"),
   facultyBio: document.getElementById("faculty-bio"),
   facultyResearch: document.getElementById("faculty-research"),
   facultyQual: document.getElementById("faculty-qual"),
@@ -129,7 +128,8 @@ async function loadFacultyProfile() {
   if (!facultyId) {
     showToast("No faculty ID provided in URL", "error");
     console.error("No faculty ID provided in URL");
-    elements.facultyName.textContent = "Invalid Profile";
+    if (elements.facultyName)
+      elements.facultyName.textContent = "Invalid Profile";
     return;
   }
 
@@ -144,19 +144,23 @@ async function loadFacultyProfile() {
     currentProfile = await res.json();
     console.log("Fetched faculty profile:", currentProfile);
 
-    elements.facultyPic.src = currentProfile.profile_pic
-      ? `${API_URL}${currentProfile.profile_pic}?t=${Date.now()}`
-      : "https://via.placeholder.com/150";
-    elements.facultyName.textContent = currentProfile.name || "Unknown";
-    elements.facultyDept.textContent =
-      currentProfile.department || "Not provided";
-    elements.facultyBio.textContent = currentProfile.bio || "Not provided";
-    elements.facultyResearch.textContent =
-      currentProfile.research || "Not provided";
-    elements.facultyQual.textContent =
-      currentProfile.qualifications || "Not provided";
-    elements.facultyExp.textContent =
-      currentProfile.experience || "Not provided";
+    if (elements.facultyPic)
+      elements.facultyPic.src = currentProfile.profile_pic
+        ? `${API_URL}${currentProfile.profile_pic}?t=${Date.now()}`
+        : "https://via.placeholder.com/150";
+    if (elements.facultyName)
+      elements.facultyName.textContent = currentProfile.name || "Unknown";
+    if (elements.facultyBio)
+      elements.facultyBio.textContent = currentProfile.bio || "Not provided";
+    if (elements.facultyResearch)
+      elements.facultyResearch.textContent =
+        currentProfile.research || "Not provided";
+    if (elements.facultyQual)
+      elements.facultyQual.textContent =
+        currentProfile.qualifications || "Not provided";
+    if (elements.facultyExp)
+      elements.facultyExp.textContent =
+        currentProfile.experience || "Not provided";
 
     if (
       currentUser &&
@@ -170,13 +174,14 @@ async function loadFacultyProfile() {
   } catch (err) {
     showToast("Failed to load faculty profile: " + err.message, "error");
     console.error("Profile fetch error:", err);
-    elements.facultyPic.src = "https://via.placeholder.com/150";
-    elements.facultyName.textContent = "Profile Not Found";
-    elements.facultyDept.textContent = "N/A";
-    elements.facultyBio.textContent = "N/A";
-    elements.facultyResearch.textContent = "N/A";
-    elements.facultyQual.textContent = "N/A";
-    elements.facultyExp.textContent = "N/A";
+    if (elements.facultyPic)
+      elements.facultyPic.src = "https://via.placeholder.com/150";
+    if (elements.facultyName)
+      elements.facultyName.textContent = "Profile Not Found";
+    if (elements.facultyBio) elements.facultyBio.textContent = "N/A";
+    if (elements.facultyResearch) elements.facultyResearch.textContent = "N/A";
+    if (elements.facultyQual) elements.facultyQual.textContent = "N/A";
+    if (elements.facultyExp) elements.facultyExp.textContent = "N/A";
   }
 }
 
@@ -197,10 +202,9 @@ if (elements.editBtn) {
     }
     if (!currentProfile) return showToast("No profile data available", "error");
     elements.editModal.classList.remove("hidden");
-    elements.editTitle.innerHTML = `<i class="fas fa-user-edit"></i> Edit Faculty Profile`;
+    elements.editTitle.innerHTML = `<i class="fas fa-user-edit"></i> Edit IT Faculty Profile`;
     elements.profileForm.id.value = facultyId;
     elements.profileForm.name.value = currentProfile.name || "";
-    elements.profileForm.department.value = currentProfile.department || "";
     elements.profileForm.bio.value = currentProfile.bio || "";
     elements.profileForm.research.value = currentProfile.research || "";
     elements.profileForm.qualifications.value =
@@ -265,18 +269,17 @@ if (elements.exportPdf) {
     }
     const doc = new jsPDF();
     doc.setFontSize(18);
-    doc.text("SSN Faculty Profile", 20, 20);
+    doc.text("SSN IT Faculty Profile", 20, 20);
     doc.setFontSize(12);
     doc.text(`Name: ${currentProfile.name || "Unknown"}`, 20, 30);
-    doc.text(`Department: ${currentProfile.department || "N/A"}`, 20, 40);
-    doc.text(`Bio: ${currentProfile.bio || "N/A"}`, 20, 50);
-    doc.text(`Research: ${currentProfile.research || "N/A"}`, 20, 60);
+    doc.text(`Bio: ${currentProfile.bio || "N/A"}`, 20, 40);
+    doc.text(`Research Interests: ${currentProfile.research || "N/A"}`, 20, 50);
     doc.text(
       `Qualifications: ${currentProfile.qualifications || "N/A"}`,
       20,
-      70
+      60
     );
-    doc.text(`Experience: ${currentProfile.experience || "N/A"}`, 20, 80);
+    doc.text(`Experience: ${currentProfile.experience || "N/A"}`, 20, 70);
     doc.save(`${currentProfile.name || "faculty"}_SSN.pdf`);
     showToast(`Exported PDF for ${currentProfile.name || "faculty"}`);
   });
@@ -305,7 +308,12 @@ async function initialize() {
         email: localStorage.getItem("email") || "Unknown",
         role:
           data.user_id.toString() ===
-          (await User.findOne({ email: "admin@ssn.edu.in" }))._id.toString()
+          (await fetch(`${API_URL}/profiles`)
+            .then((res) => res.json())
+            .then(
+              (profiles) =>
+                profiles.find((p) => p.email === "admin@ssn.edu.in")?._id
+            ))
             ? "manager"
             : "staff",
       };

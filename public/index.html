@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SSN College of Engineering - Faculty Management</title>
+    <title>SSN Information Technology Faculty</title>
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
@@ -12,25 +12,25 @@
   </head>
   <body>
     <!-- Header -->
-    <header class="header glassy">
+    <header class="header">
       <div class="header-brand">
         <i class="fas fa-graduation-cap"></i>
-        <h1>SSN College of Engineering</h1>
+        <h1>SSN Information Technology Faculty</h1>
       </div>
       <div class="header-controls">
         <button id="theme-toggle" class="btn-icon" title="Toggle Theme">
           <i class="fas fa-moon"></i>
         </button>
-        <div id="user-status" class="user-status glassy"></div>
-        <button id="login-btn" class="btn glassy-btn">Login</button>
-        <button id="logout-btn" class="btn glassy-btn hidden">Logout</button>
+        <div id="user-status" class="user-status"></div>
+        <button id="login-btn" class="btn">Login</button>
+        <button id="logout-btn" class="btn hidden">Logout</button>
       </div>
     </header>
 
     <!-- Main Container -->
     <div class="main-container">
       <!-- Sidebar -->
-      <aside class="sidebar glassy">
+      <aside class="sidebar">
         <div class="sidebar-header">
           <h2>Filters</h2>
           <button id="collapse-sidebar" class="btn-icon">
@@ -41,33 +41,21 @@
           <input
             type="text"
             id="search-bar"
-            placeholder="Search faculty..."
-            class="input-search glassy-input"
+            placeholder="Search IT Faculty..."
+            class="input-search"
           />
           <i class="fas fa-search search-icon"></i>
         </div>
         <div class="filter-section">
-          <label for="dept-filter">Department</label>
-          <select id="dept-filter" class="input-select glassy-select">
-            <option value="">All Departments</option>
-            <option value="CS">Computer Science</option>
-            <option value="EE">Electrical Engineering</option>
-            <option value="ME">Mechanical Engineering</option>
-            <option value="CE">Civil Engineering</option>
-            <option value="IT">Information Technology</option>
-            <!-- Added IT -->
-          </select>
-        </div>
-        <div class="filter-section">
           <label for="role-filter">Role</label>
-          <select id="role-filter" class="input-select glassy-select">
+          <select id="role-filter" class="input-select">
             <option value="">All Roles</option>
             <option value="Professor">Professor</option>
             <option value="Lecturer">Lecturer</option>
             <option value="Researcher">Researcher</option>
           </select>
         </div>
-        <button id="reset-filters" class="btn glassy-btn btn-secondary">
+        <button id="reset-filters" class="btn btn-secondary">
           Reset Filters
         </button>
       </aside>
@@ -75,40 +63,21 @@
       <!-- Content Area -->
       <main class="content">
         <!-- Profile Grid -->
-        <section
-          id="profile-grid"
-          class="grid-container glassy-container"
-        ></section>
+        <section id="profile-grid" class="grid-container"></section>
 
         <!-- Admin Dashboard -->
-        <section id="admin-dashboard" class="dashboard hidden glassy-container">
+        <section id="admin-dashboard" class="dashboard hidden">
           <div class="dashboard-header">
             <h2>Admin Dashboard</h2>
-            <button id="add-staff-btn" class="btn glassy-btn btn-primary">
-              <i class="fas fa-plus"></i> Add Faculty
+            <button id="add-staff-btn" class="btn btn-primary">
+              <i class="fas fa-plus"></i> Add IT Faculty
             </button>
           </div>
           <div class="stats-container">
-            <div class="stat-card glassy">
+            <div class="stat-card">
               <i class="fas fa-users"></i>
-              <h3>Total Faculty</h3>
+              <h3>Total IT Faculty</h3>
               <p id="total-staff">0</p>
-            </div>
-            <div class="stat-card glassy">
-              <i class="fas fa-laptop-code"></i>
-              <h3>CS Dept</h3>
-              <p id="cs-staff">0</p>
-            </div>
-            <div class="stat-card glassy">
-              <i class="fas fa-bolt"></i>
-              <h3>EE Dept</h3>
-              <p id="ee-staff">0</p>
-            </div>
-            <div class="stat-card glassy">
-              <i class="fas fa-network-wired"></i>
-              <h3>IT Dept</h3>
-              <p id="it-staff">0</p>
-              <!-- Added IT stat -->
             </div>
           </div>
           <div id="admin-profiles" class="grid-container"></div>
@@ -118,7 +87,7 @@
 
     <!-- Login Modal -->
     <div id="login-modal" class="modal hidden">
-      <div class="modal-content glassy animate-in">
+      <div class="modal-content">
         <h2><i class="fas fa-sign-in-alt"></i> Login</h2>
         <form id="login-form" class="form">
           <div class="form-group">
@@ -128,8 +97,8 @@
               id="login-email"
               name="email"
               required
-              class="input glassy-input"
-              placeholder="e.g., john.doe@ssn.edu.in"
+              class="input"
+              placeholder="e.g., mike.lee@ssn.edu.in"
             />
           </div>
           <div class="form-group">
@@ -139,16 +108,12 @@
               id="login-password"
               name="password"
               required
-              class="input glassy-input"
+              class="input"
             />
           </div>
-          <button type="submit" class="btn glassy-btn btn-primary">
-            Login
-          </button>
-          <button id="close-login" class="btn glassy-btn btn-secondary">
-            Cancel
-          </button>
-          <button id="forgot-password-btn" class="btn glassy-btn btn-secondary">
+          <button type="submit" class="btn btn-primary">Login</button>
+          <button id="close-login" class="btn btn-secondary">Cancel</button>
+          <button id="forgot-password-btn" class="btn btn-secondary">
             Forgot Password?
           </button>
         </form>
@@ -157,7 +122,7 @@
 
     <!-- Forgot Password Modal -->
     <div id="forgot-password-modal" class="modal hidden">
-      <div class="modal-content glassy animate-in">
+      <div class="modal-content">
         <h2><i class="fas fa-key"></i> Reset Password</h2>
         <form id="forgot-password-form" class="form">
           <div class="form-group">
@@ -167,8 +132,8 @@
               id="forgot-phone"
               name="phone_number"
               required
-              class="input glassy-input"
-              placeholder="e.g., 9876543210"
+              class="input"
+              placeholder="e.g., 4445556666"
             />
           </div>
           <div class="form-group">
@@ -178,16 +143,11 @@
               id="forgot-new-password"
               name="new_password"
               required
-              class="input glassy-input"
+              class="input"
             />
           </div>
-          <button type="submit" class="btn glassy-btn btn-primary">
-            Reset Password
-          </button>
-          <button
-            id="close-forgot-password"
-            class="btn glassy-btn btn-secondary"
-          >
+          <button type="submit" class="btn btn-primary">Reset Password</button>
+          <button id="close-forgot-password" class="btn btn-secondary">
             Cancel
           </button>
         </form>
@@ -196,8 +156,10 @@
 
     <!-- Profile Edit/Add Modal -->
     <div id="edit-modal" class="modal hidden">
-      <div class="modal-content glassy animate-in">
-        <h2 id="edit-title"><i class="fas fa-user-edit"></i> Edit Profile</h2>
+      <div class="modal-content">
+        <h2 id="edit-title">
+          <i class="fas fa-user-edit"></i> Edit IT Profile
+        </h2>
         <form id="profile-form" class="form" enctype="multipart/form-data">
           <input type="hidden" name="id" />
           <div class="form-group" id="email-group">
@@ -206,8 +168,8 @@
               type="email"
               id="edit-email"
               name="email"
-              class="input glassy-input"
-              placeholder="e.g., john.doe@ssn.edu.in"
+              class="input"
+              placeholder="e.g., mike.lee@ssn.edu.in"
             />
           </div>
           <div class="form-group" id="password-group">
@@ -216,7 +178,7 @@
               type="password"
               id="edit-password"
               name="password"
-              class="input glassy-input"
+              class="input"
             />
           </div>
           <div class="form-group" id="phone-group">
@@ -225,8 +187,8 @@
               type="text"
               id="edit-phone"
               name="phone_number"
-              class="input glassy-input"
-              placeholder="e.g., 9876543210"
+              class="input"
+              placeholder="e.g., 4445556666"
             />
           </div>
           <div class="form-group">
@@ -236,17 +198,7 @@
               id="edit-name"
               name="name"
               required
-              class="input glassy-input"
-            />
-          </div>
-          <div class="form-group">
-            <label for="edit-dept">Department</label>
-            <input
-              type="text"
-              id="edit-dept"
-              name="department"
-              required
-              class="input glassy-input"
+              class="input"
             />
           </div>
           <div class="form-group">
@@ -254,7 +206,7 @@
             <textarea
               id="edit-bio"
               name="bio"
-              class="input glassy-input textarea"
+              class="input textarea"
               rows="4"
             ></textarea>
           </div>
@@ -264,7 +216,7 @@
               type="text"
               id="edit-research"
               name="research"
-              class="input glassy-input"
+              class="input"
             />
           </div>
           <div class="form-group">
@@ -273,7 +225,7 @@
               type="text"
               id="edit-qualifications"
               name="qualifications"
-              class="input glassy-input"
+              class="input"
               placeholder="e.g., PhD, MSc"
             />
           </div>
@@ -283,7 +235,7 @@
               type="text"
               id="edit-experience"
               name="experience"
-              class="input glassy-input"
+              class="input"
               placeholder="e.g., 5 years teaching"
             />
           </div>
@@ -294,19 +246,15 @@
               id="edit-pic"
               name="profile_pic"
               accept="image/*"
-              class="input glassy-input"
+              class="input"
             />
           </div>
           <div class="form-actions">
-            <button type="submit" class="btn glassy-btn btn-primary">
-              Save
-            </button>
-            <button id="export-pdf" class="btn glassy-btn btn-secondary">
+            <button type="submit" class="btn btn-primary">Save</button>
+            <button id="export-pdf" class="btn btn-secondary">
               Export PDF
             </button>
-            <button id="close-edit" class="btn glassy-btn btn-secondary">
-              Cancel
-            </button>
+            <button id="close-edit" class="btn btn-secondary">Cancel</button>
           </div>
         </form>
       </div>

@@ -20,15 +20,15 @@ const elements = {
   exportPdf: document.getElementById("export-pdf"),
   closeEdit: document.getElementById("close-edit"),
   searchBar: document.getElementById("search-bar"),
-  deptFilter: document.getElementById("dept-filter"),
   roleFilter: document.getElementById("role-filter"),
   resetFilters: document.getElementById("reset-filters"),
   collapseSidebar: document.getElementById("collapse-sidebar"),
   toastContainer: document.getElementById("toast-container"),
   totalStaff: document.getElementById("total-staff"),
-  csStaff: document.getElementById("cs-staff"),
-  eeStaff: document.getElementById("ee-staff"),
-  itStaff: document.getElementById("it-staff"),
+  forgotPasswordBtn: document.getElementById("forgot-password-btn"),
+  forgotPasswordModal: document.getElementById("forgot-password-modal"),
+  forgotPasswordForm: document.getElementById("forgot-password-form"),
+  closeForgotPassword: document.getElementById("close-forgot-password"),
 };
 
 // State Variables
@@ -67,9 +67,6 @@ if (elements.themeToggle) {
   if (savedTheme === "dark") {
     document.body.classList.add("dark-theme");
     elements.themeToggle.innerHTML = '<i class="fas fa-sun"></i>';
-  } else {
-    document.body.classList.remove("dark-theme");
-    elements.themeToggle.innerHTML = '<i class="fas fa-moon"></i>';
   }
 }
 
@@ -176,11 +173,11 @@ async function fetchProfiles() {
     const res = await fetch(`${API_URL}/profiles`, { cache: "no-store" });
     if (!res.ok) throw new Error(`Failed to fetch profiles: ${res.status}`);
     profiles = await res.json();
-    console.log("Fetched profiles:", profiles);
+    console.log("Fetched IT profiles:", profiles);
     renderProfiles(profiles);
     if (currentUser?.role === "manager") renderAdminDashboard();
   } catch (err) {
-    showToast("Failed to load faculty profiles: " + err.message, "error");
+    showToast("Failed to load IT faculty profiles: " + err.message, "error");
     console.error(err);
   }
 }
@@ -194,12 +191,12 @@ function renderProfiles(data) {
   elements.profileGrid.innerHTML = "";
   if (!data || !data.length) {
     elements.profileGrid.innerHTML =
-      '<div class="grid-placeholder">No faculty profiles found</div>';
+      '<div class="grid-placeholder">No IT faculty profiles found</div>';
     return;
   }
   data.forEach((profile) => {
     const card = document.createElement("div");
-    card.className = "profile-card glassy";
+    card.className = "profile-card";
     card.innerHTML = `
             <div class="card-header">
                 <img src="${
@@ -210,7 +207,6 @@ function renderProfiles(data) {
                 <h3>${profile.name}</h3>
             </div>
             <div class="card-body">
-                <p><i class="fas fa-building"></i> ${profile.department}</p>
                 <p><i class="fas fa-info-circle"></i> ${
                   profile.bio?.substring(0, 50) || "No bio"
                 }...</p>
@@ -218,7 +214,7 @@ function renderProfiles(data) {
             <div class="card-actions">
                 <button onclick="window.location.href='/faculty-profile.html?id=${
                   profile._id
-                }'" class="btn glassy-btn btn-primary btn-small">
+                }'" class="btn btn-primary btn-small">
                     <i class="fas fa-eye"></i> View
                 </button>
                 ${
@@ -228,13 +224,13 @@ function renderProfiles(data) {
                     ? `
                     <button onclick="editProfile('${
                       profile._id
-                    }')" class="btn glassy-btn btn-secondary btn-small">
+                    }')" class="btn btn-secondary btn-small">
                         <i class="fas fa-edit"></i> Edit
                     </button>
                     ${
                       currentUser.role === "manager"
                         ? `
-                        <button onclick="deleteProfile('${profile._id}')" class="btn glassy-btn btn-danger btn-small">
+                        <button onclick="deleteProfile('${profile._id}')" class="btn btn-danger btn-small">
                             <i class="fas fa-trash"></i> Delete
                         </button>
                     `
@@ -258,15 +254,14 @@ function renderAdminDashboard() {
   elements.adminProfiles.innerHTML = "";
   profiles.forEach((profile) => {
     const card = document.createElement("div");
-    card.className = "profile-card glassy";
+    card.className = "profile-card";
     card.innerHTML = `
             <h3>${profile.name}</h3>
-            <p>${profile.department}</p>
             <div class="card-actions">
-                <button onclick="editProfile('${profile._id}')" class="btn glassy-btn btn-secondary btn-small">
+                <button onclick="editProfile('${profile._id}')" class="btn btn-secondary btn-small">
                     <i class="fas fa-edit"></i> Edit
                 </button>
-                <button onclick="deleteProfile('${profile._id}')" class="btn glassy-btn btn-danger btn-small">
+                <button onclick="deleteProfile('${profile._id}')" class="btn btn-danger btn-small">
                     <i class="fas fa-trash"></i> Delete
                 </button>
             </div>
@@ -278,15 +273,6 @@ function renderAdminDashboard() {
 // Update Stats
 function updateStats(data) {
   if (elements.totalStaff) elements.totalStaff.textContent = data.length || 0;
-  if (elements.csStaff)
-    elements.csStaff.textContent =
-      data.filter((p) => p.department === "CS").length || 0;
-  if (elements.eeStaff)
-    elements.eeStaff.textContent =
-      data.filter((p) => p.department === "EE").length || 0;
-  if (elements.itStaff)
-    elements.itStaff.textContent =
-      data.filter((p) => p.department === "IT").length || 0;
 }
 
 // Edit Profile
@@ -308,10 +294,9 @@ function editProfile(id) {
     showToast("Unauthorized: You can only edit your own profile", "error");
     return;
   }
-  elements.editTitle.innerHTML = `<i class="fas fa-user-edit"></i> Edit Faculty Profile`;
+  elements.editTitle.innerHTML = `<i class="fas fa-user-edit"></i> Edit IT Faculty Profile`;
   elements.profileForm.id.value = profile._id;
   elements.profileForm.name.value = profile.name;
-  elements.profileForm.department.value = profile.department;
   elements.profileForm.bio.value = profile.bio || "";
   elements.profileForm.research.value = profile.research || "";
   elements.profileForm.qualifications.value = profile.qualifications || "";
@@ -340,9 +325,9 @@ function editProfile(id) {
         profiles[index] = data.profile;
         renderProfiles(profiles);
         if (currentUser.role === "manager") renderAdminDashboard();
-        showToast(`Faculty profile updated: ${formData.get("name")}`);
+        showToast(`IT faculty profile updated: ${formData.get("name")}`);
       } else {
-        showToast(`Failed to update faculty: ${data.message}`, "error");
+        showToast(`Failed to update IT faculty: ${data.message}`, "error");
       }
     } catch (err) {
       showToast("Server error during update: " + err.message, "error");
@@ -361,10 +346,10 @@ if (elements.closeEdit) {
 if (elements.addStaffBtn) {
   elements.addStaffBtn.addEventListener("click", () => {
     if (!currentUser || currentUser.role !== "manager") {
-      showToast("Unauthorized: Only managers can add faculty", "error");
+      showToast("Unauthorized: Only managers can add IT faculty", "error");
       return;
     }
-    elements.editTitle.innerHTML = `<i class="fas fa-user-plus"></i> Add Faculty`;
+    elements.editTitle.innerHTML = `<i class="fas fa-user-plus"></i> Add IT Faculty`;
     elements.profileForm.reset();
     elements.profileForm.id.value = "";
     elements.profileForm.querySelector("#email-group").style.display = "block";
@@ -399,9 +384,9 @@ if (elements.addStaffBtn) {
           profiles.push(data.profile);
           renderProfiles(profiles);
           if (currentUser.role === "manager") renderAdminDashboard();
-          showToast(`Faculty added: ${formData.get("name")}`);
+          showToast(`IT faculty added: ${formData.get("name")}`);
         } else {
-          showToast(`Failed to add faculty: ${data.message}`, "error");
+          showToast(`Failed to add IT faculty: ${data.message}`, "error");
         }
       } catch (err) {
         showToast("Server error during creation: " + err.message, "error");
@@ -419,10 +404,10 @@ async function deleteProfile(id) {
     return;
   }
   if (!currentUser || currentUser.role !== "manager") {
-    showToast("Unauthorized: Only managers can delete faculty", "error");
+    showToast("Unauthorized: Only managers can delete IT faculty", "error");
     return;
   }
-  if (confirm("Are you sure you want to delete this faculty profile?")) {
+  if (confirm("Are you sure you want to delete this IT faculty profile?")) {
     try {
       const res = await fetch(`${API_URL}/profiles/${id}`, {
         method: "DELETE",
@@ -434,9 +419,9 @@ async function deleteProfile(id) {
         profiles = profiles.filter((p) => p._id !== id);
         renderProfiles(profiles);
         if (currentUser.role === "manager") renderAdminDashboard();
-        showToast(`Faculty profile deleted (ID: ${id})`);
+        showToast(`IT faculty profile deleted (ID: ${id})`);
       } else {
-        showToast(`Failed to delete faculty: ${data.message}`, "error");
+        showToast(`Failed to delete IT faculty: ${data.message}`, "error");
       }
     } catch (err) {
       showToast("Server error during deletion: " + err.message, "error");
@@ -445,17 +430,14 @@ async function deleteProfile(id) {
   }
 }
 
-// Search and Filter
+// Search and Filter (Only by Role and Name)
 if (elements.searchBar)
   elements.searchBar.addEventListener("input", filterProfiles);
-if (elements.deptFilter)
-  elements.deptFilter.addEventListener("change", filterProfiles);
 if (elements.roleFilter)
   elements.roleFilter.addEventListener("change", filterProfiles);
 if (elements.resetFilters) {
   elements.resetFilters.addEventListener("click", () => {
     elements.searchBar.value = "";
-    elements.deptFilter.value = "";
     elements.roleFilter.value = "";
     renderProfiles(profiles);
   });
@@ -463,14 +445,12 @@ if (elements.resetFilters) {
 
 function filterProfiles() {
   const search = elements.searchBar.value.toLowerCase();
-  const dept = elements.deptFilter.value;
   const role = elements.roleFilter.value;
   const filtered = profiles.filter(
     (p) =>
       (p.name.toLowerCase().includes(search) ||
         p.bio?.toLowerCase().includes(search) ||
         p.research?.toLowerCase().includes(search)) &&
-      (!dept || p.department === dept) &&
       (!role ||
         (role === "Professor" && p.experience?.includes("Professor")) ||
         (role === "Lecturer" && p.experience?.includes("Lecturer")) ||
