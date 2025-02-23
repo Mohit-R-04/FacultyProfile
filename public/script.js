@@ -28,7 +28,7 @@ const elements = {
   totalStaff: document.getElementById("total-staff"),
   csStaff: document.getElementById("cs-staff"),
   eeStaff: document.getElementById("ee-staff"),
-  itStaff: document.getElementById("it-staff"), // Added IT stat
+  itStaff: document.getElementById("it-staff"),
 };
 
 // State Variables
@@ -50,11 +50,6 @@ const showToast = (message, type = "success") => {
     setTimeout(() => toast.remove(), 300);
   }, 3000);
   toastTimeouts.push(timeout);
-};
-
-const clearToasts = () => {
-  toastTimeouts.forEach(clearTimeout);
-  elements.toastContainer.innerHTML = "";
 };
 
 // Theme Management
@@ -222,24 +217,24 @@ function renderProfiles(data) {
             </div>
             <div class="card-actions">
                 <button onclick="window.location.href='/faculty-profile.html?id=${
-                  profile.id
+                  profile._id
                 }'" class="btn glassy-btn btn-primary btn-small">
                     <i class="fas fa-eye"></i> View
                 </button>
                 ${
                   currentUser &&
-                  (currentUser.id === profile.user_id ||
+                  (currentUser.id === profile.user_id.toString() ||
                     currentUser.role === "manager")
                     ? `
-                    <button onclick="editProfile(${
-                      profile.id
-                    })" class="btn glassy-btn btn-secondary btn-small">
+                    <button onclick="editProfile('${
+                      profile._id
+                    }')" class="btn glassy-btn btn-secondary btn-small">
                         <i class="fas fa-edit"></i> Edit
                     </button>
                     ${
                       currentUser.role === "manager"
                         ? `
-                        <button onclick="deleteProfile(${profile.id})" class="btn glassy-btn btn-danger btn-small">
+                        <button onclick="deleteProfile('${profile._id}')" class="btn glassy-btn btn-danger btn-small">
                             <i class="fas fa-trash"></i> Delete
                         </button>
                     `
@@ -268,10 +263,10 @@ function renderAdminDashboard() {
             <h3>${profile.name}</h3>
             <p>${profile.department}</p>
             <div class="card-actions">
-                <button onclick="editProfile(${profile.id})" class="btn glassy-btn btn-secondary btn-small">
+                <button onclick="editProfile('${profile._id}')" class="btn glassy-btn btn-secondary btn-small">
                     <i class="fas fa-edit"></i> Edit
                 </button>
-                <button onclick="deleteProfile(${profile.id})" class="btn glassy-btn btn-danger btn-small">
+                <button onclick="deleteProfile('${profile._id}')" class="btn glassy-btn btn-danger btn-small">
                     <i class="fas fa-trash"></i> Delete
                 </button>
             </div>
@@ -291,22 +286,30 @@ function updateStats(data) {
       data.filter((p) => p.department === "EE").length || 0;
   if (elements.itStaff)
     elements.itStaff.textContent =
-      data.filter((p) => p.department === "IT").length || 0; // Added IT stat
+      data.filter((p) => p.department === "IT").length || 0;
 }
 
 // Edit Profile
 function editProfile(id) {
-  const profile = profiles.find((p) => p.id === id);
+  console.log("Editing profile with ID:", id);
+  if (!id) {
+    showToast("Invalid profile ID", "error");
+    return;
+  }
+  const profile = profiles.find((p) => p._id === id);
   if (!currentUser) {
     showToast("Please login to edit profiles", "error");
     return;
   }
-  if (currentUser.id !== profile.user_id && currentUser.role !== "manager") {
+  if (
+    currentUser.id !== profile.user_id.toString() &&
+    currentUser.role !== "manager"
+  ) {
     showToast("Unauthorized: You can only edit your own profile", "error");
     return;
   }
   elements.editTitle.innerHTML = `<i class="fas fa-user-edit"></i> Edit Faculty Profile`;
-  elements.profileForm.id.value = profile.id;
+  elements.profileForm.id.value = profile._id;
   elements.profileForm.name.value = profile.name;
   elements.profileForm.department.value = profile.department;
   elements.profileForm.bio.value = profile.bio || "";
@@ -333,7 +336,7 @@ function editProfile(id) {
       console.log("Update response:", data);
       if (data.success) {
         elements.editModal.classList.add("hidden");
-        const index = profiles.findIndex((p) => p.id === id);
+        const index = profiles.findIndex((p) => p._id === id);
         profiles[index] = data.profile;
         renderProfiles(profiles);
         if (currentUser.role === "manager") renderAdminDashboard();
@@ -409,36 +412,35 @@ if (elements.addStaffBtn) {
 }
 
 // Delete Profile
-function deleteProfile(id) {
+async function deleteProfile(id) {
+  console.log("Deleting profile with ID:", id);
+  if (!id) {
+    showToast("Invalid profile ID", "error");
+    return;
+  }
   if (!currentUser || currentUser.role !== "manager") {
     showToast("Unauthorized: Only managers can delete faculty", "error");
     return;
   }
   if (confirm("Are you sure you want to delete this faculty profile?")) {
     try {
-      fetch(`${API_URL}/profiles/${id}`, {
+      const res = await fetch(`${API_URL}/profiles/${id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-      })
-        .then((res) => res.json())
-        .then((data) => {
-          console.log("Delete response:", data);
-          if (data.success) {
-            profiles = profiles.filter((p) => p.id !== id);
-            renderProfiles(profiles);
-            if (currentUser.role === "manager") renderAdminDashboard();
-            showToast(`Faculty profile deleted (ID: ${id})`);
-          } else {
-            showToast(`Failed to delete faculty: ${data.message}`, "error");
-          }
-        })
-        .catch((err) => {
-          showToast("Server error during deletion: " + err.message, "error");
-          console.error("Delete error:", err);
-        });
+      });
+      const data = await res.json();
+      console.log("Delete response:", data);
+      if (data.success) {
+        profiles = profiles.filter((p) => p._id !== id);
+        renderProfiles(profiles);
+        if (currentUser.role === "manager") renderAdminDashboard();
+        showToast(`Faculty profile deleted (ID: ${id})`);
+      } else {
+        showToast(`Failed to delete faculty: ${data.message}`, "error");
+      }
     } catch (err) {
       showToast("Server error during deletion: " + err.message, "error");
-      console.error(err);
+      console.error("Delete error:", err);
     }
   }
 }

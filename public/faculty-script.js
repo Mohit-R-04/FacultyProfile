@@ -34,7 +34,8 @@ let currentProfile = null;
 let toastTimeouts = [];
 
 const urlParams = new URLSearchParams(window.location.search);
-facultyId = parseInt(urlParams.get("id")); // Get faculty ID from URL
+facultyId = urlParams.get("id"); // Get faculty ID from URL
+console.log("Faculty ID from URL:", facultyId);
 
 // Utility Functions
 const showToast = (message, type = "success") => {
@@ -50,11 +51,6 @@ const showToast = (message, type = "success") => {
     setTimeout(() => toast.remove(), 300);
   }, 3000);
   toastTimeouts.push(timeout);
-};
-
-const clearToasts = () => {
-  toastTimeouts.forEach(clearTimeout);
-  elements.toastContainer.innerHTML = "";
 };
 
 // Theme Management
@@ -130,11 +126,21 @@ if (elements.loginForm) {
 
 // Load Faculty Profile
 async function loadFacultyProfile() {
+  if (!facultyId) {
+    showToast("No faculty ID provided in URL", "error");
+    console.error("No faculty ID provided in URL");
+    elements.facultyName.textContent = "Invalid Profile";
+    return;
+  }
+
   try {
     const res = await fetch(`${API_URL}/profiles/${facultyId}`, {
       cache: "no-store",
     });
-    if (!res.ok) throw new Error(`Failed to fetch profile: ${res.statusText}`);
+    if (!res.ok) {
+      const errorText = await res.text();
+      throw new Error(`Failed to fetch profile: ${res.status} - ${errorText}`);
+    }
     currentProfile = await res.json();
     console.log("Fetched faculty profile:", currentProfile);
 
@@ -154,7 +160,7 @@ async function loadFacultyProfile() {
 
     if (
       currentUser &&
-      (currentUser.id === currentProfile.user_id ||
+      (currentUser.id === currentProfile.user_id.toString() ||
         currentUser.role === "manager")
     ) {
       elements.editBtn.classList.remove("hidden");
@@ -163,7 +169,7 @@ async function loadFacultyProfile() {
     }
   } catch (err) {
     showToast("Failed to load faculty profile: " + err.message, "error");
-    console.error(err);
+    console.error("Profile fetch error:", err);
     elements.facultyPic.src = "https://via.placeholder.com/150";
     elements.facultyName.textContent = "Profile Not Found";
     elements.facultyDept.textContent = "N/A";
@@ -183,7 +189,7 @@ if (elements.editBtn) {
       return;
     }
     if (
-      currentUser.id !== currentProfile.user_id &&
+      currentUser.id !== currentProfile.user_id.toString() &&
       currentUser.role !== "manager"
     ) {
       showToast("Unauthorized: You can only edit your own profile", "error");
@@ -213,7 +219,7 @@ if (elements.profileForm) {
       return;
     }
     if (
-      currentUser.id !== currentProfile.user_id &&
+      currentUser.id !== currentProfile.user_id.toString() &&
       currentUser.role !== "manager"
     ) {
       showToast("Unauthorized: You can only edit your own profile", "error");
@@ -295,9 +301,13 @@ async function initialize() {
       const data = await res.json();
       currentProfile = data;
       currentUser = {
-        id: data.user_id,
+        id: data.user_id.toString(),
         email: localStorage.getItem("email") || "Unknown",
-        role: data.user_id === 1 ? "manager" : "staff",
+        role:
+          data.user_id.toString() ===
+          (await User.findOne({ email: "admin@ssn.edu.in" }))._id.toString()
+            ? "manager"
+            : "staff",
       };
       localStorage.setItem("email", currentUser.email);
       elements.logoutBtn.classList.remove("hidden");
