@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SSN College of Engineering - Faculty Profile</title>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <!-- Header -->
+    <header class="header glassy">
+      <div class="header-brand">
+        <i class="fas fa-graduation-cap"></i>
+        <h1>SSN College of Engineering</h1>
+      </div>
+      <div class="header-controls">
+        <button id="theme-toggle" class="btn-icon" title="Toggle Theme">
+          <i class="fas fa-moon"></i>
+        </button>
+        <div id="user-status" class="user-status glassy"></div>
+        <button id="login-btn" class="btn glassy-btn">Login</button>
+        <button id="logout-btn" class="btn glassy-btn hidden">Logout</button>
+        <button id="back-btn" class="btn glassy-btn btn-secondary">
+          Back to Faculty List
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="faculty-content glassy-container">
+      <div class="faculty-profile-header">
+        <img
+          id="faculty-pic"
+          class="faculty-avatar-circle"
+          alt="Faculty Picture"
+        />
+        <h2 id="faculty-name" class="faculty-name"></h2>
+      </div>
+      <div class="faculty-details">
+        <p>
+          <i class="fas fa-building"></i> <strong>Department:</strong>
+          <span id="faculty-dept"></span>
+        </p>
+        <p>
+          <i class="fas fa-info-circle"></i> <strong>Bio:</strong>
+          <span id="faculty-bio"></span>
+        </p>
+        <p>
+          <i class="fas fa-flask"></i> <strong>Research Interests:</strong>
+          <span id="faculty-research"></span>
+        </p>
+        <p>
+          <i class="fas fa-graduation-cap"></i>
+          <strong>Qualifications:</strong> <span id="faculty-qual"></span>
+        </p>
+        <p>
+          <i class="fas fa-briefcase"></i> <strong>Experience:</strong>
+          <span id="faculty-exp"></span>
+        </p>
+      </div>
+      <div class="faculty-actions">
+        <button id="edit-btn" class="btn glassy-btn btn-secondary hidden">
+          Edit Profile
+        </button>
+        <button id="export-pdf" class="btn glassy-btn btn-secondary">
+          Export PDF
+        </button>
+      </div>
+    </main>
+
+    <!-- Login Modal -->
+    <div id="login-modal" class="modal hidden">
+      <div class="modal-content glassy animate-in">
+        <h2><i class="fas fa-sign-in-alt"></i> Login</h2>
+        <form id="login-form" class="form">
+          <div class="form-group">
+            <label for="login-email">Email</label>
+            <input
+              type="email"
+              id="login-email"
+              name="email"
+              required
+              class="input glassy-input"
+              placeholder="e.g., john.doe@ssn.edu.in"
+            />
+          </div>
+          <div class="form-group">
+            <label for="login-password">Password</label>
+            <input
+              type="password"
+              id="login-password"
+              name="password"
+              required
+              class="input glassy-input"
+            />
+          </div>
+          <button type="submit" class="btn glassy-btn btn-primary">
+            Login
+          </button>
+          <button id="close-login" class="btn glassy-btn btn-secondary">
+            Cancel
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Edit Modal -->
+    <div id="edit-modal" class="modal hidden">
+      <div class="modal-content glassy animate-in">
+        <h2 id="edit-title"><i class="fas fa-user-edit"></i> Edit Profile</h2>
+        <form id="profile-form" class="form" enctype="multipart/form-data">
+          <input type="hidden" name="id" />
+          <div class="form-group">
+            <label for="edit-name">Full Name</label>
+            <input
+              type="text"
+              id="edit-name"
+              name="name"
+              required
+              class="input glassy-input"
+            />
+          </div>
+          <div class="form-group">
+            <label for="edit-dept">Department</label>
+            <input
+              type="text"
+              id="edit-dept"
+              name="department"
+              required
+              class="input glassy-input"
+            />
+          </div>
+          <div class="form-group">
+            <label for="edit-bio">Bio</label>
+            <textarea
+              id="edit-bio"
+              name="bio"
+              class="input glassy-input textarea"
+              rows="4"
+            ></textarea>
+          </div>
+          <div class="form-group">
+            <label for="edit-research">Research Interests</label>
+            <input
+              type="text"
+              id="edit-research"
+              name="research"
+              class="input glassy-input"
+            />
+          </div>
+          <div class="form-group">
+            <label for="edit-qualifications">Qualifications</label>
+            <input
+              type="text"
+              id="edit-qualifications"
+              name="qualifications"
+              class="input glassy-input"
+              placeholder="e.g., PhD, MSc"
+            />
+          </div>
+          <div class="form-group">
+            <label for="edit-experience">Experience</label>
+            <input
+              type="text"
+              id="edit-experience"
+              name="experience"
+              class="input glassy-input"
+              placeholder="e.g., 5 years teaching"
+            />
+          </div>
+          <div class="form-group">
+            <label for="edit-pic">Profile Picture</label>
+            <input
+              type="file"
+              id="edit-pic"
+              name="profile_pic"
+              accept="image/*"
+              class="input glassy-input"
+            />
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn glassy-btn btn-primary">
+              Save
+            </button>
+            <button id="close-edit" class="btn glassy-btn btn-secondary">
+              Close
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- External Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="faculty-script.js"></script>
+  </body>
+</html>
