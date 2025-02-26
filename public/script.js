@@ -1,4 +1,5 @@
-const API_URL = "http://localhost:3000";
+const API_URL =
+  window.location.hostname === "localhost" ? "http://localhost:3000" : "";
 const { jsPDF } = window.jspdf;
 
 // DOM Elements
