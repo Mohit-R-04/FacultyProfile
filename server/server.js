@@ -160,7 +160,21 @@ app.post("/login", async (req, res) => {
   }
 });
 
-// Add Faculty (Manager Only, No Department)
+// Get All Profiles (Public)
+app.get("/profiles", async (req, res) => {
+  try {
+    const profiles = await allQuery("SELECT * FROM profiles", []);
+    console.log("Fetched faculty profiles:", profiles.length, profiles);
+    res.json(profiles);
+  } catch (err) {
+    console.error("Fetch profiles error:", err);
+    res
+      .status(500)
+      .json({ success: false, message: "Server error: " + err.message });
+  }
+});
+
+// Add Faculty (Manager Only)
 app.post(
   "/profiles",
   authenticateToken,
@@ -184,7 +198,7 @@ app.post(
     } = req.body;
     const profilePic = req.file ? `/uploads/${req.file.filename}` : null;
 
-    console.log("Adding faculty:", { email, phone_number, name, profilePic }); // Debug
+    console.log("Adding faculty:", { email, phone_number, name, profilePic });
 
     if (!email || !password || !phone_number || !name) {
       console.log("Missing required fields:", {
