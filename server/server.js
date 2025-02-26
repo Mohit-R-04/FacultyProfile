@@ -54,7 +54,6 @@ db.serialize(async () => {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL UNIQUE,
       name TEXT NOT NULL,
-      department TEXT NOT NULL,
       bio TEXT,
       profile_pic TEXT,
       qualifications TEXT,
@@ -161,7 +160,7 @@ app.post("/login", async (req, res) => {
   }
 });
 
-// Add Faculty (Manager Only)
+// Add Faculty (Manager Only, No Department)
 app.post(
   "/profiles",
   authenticateToken,
@@ -178,7 +177,6 @@ app.post(
       password,
       phone_number,
       name,
-      department,
       bio,
       research,
       qualifications,
@@ -186,26 +184,18 @@ app.post(
     } = req.body;
     const profilePic = req.file ? `/uploads/${req.file.filename}` : null;
 
-    console.log("Adding faculty:", {
-      email,
-      phone_number,
-      name,
-      department,
-      profilePic,
-    }); // Debug
+    console.log("Adding faculty:", { email, phone_number, name, profilePic }); // Debug
 
-    if (!email || !password || !phone_number || !name || !department) {
+    if (!email || !password || !phone_number || !name) {
       console.log("Missing required fields:", {
         email,
         password,
         phone_number,
         name,
-        department,
       });
       return res.status(400).json({
         success: false,
-        message:
-          "Email, password, phone number, name, and department are required",
+        message: "Email, password, phone number, and name are required",
       });
     }
 
@@ -218,11 +208,10 @@ app.post(
       const userId = userResult.lastID;
 
       const profileResult = await runQuery(
-        "INSERT INTO profiles (user_id, name, department, bio, profile_pic, research, qualifications, experience) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO profiles (user_id, name, bio, profile_pic, research, qualifications, experience) VALUES (?, ?, ?, ?, ?, ?, ?)",
         [
           userId,
           name,
-          department,
           bio || "",
           profilePic || null,
           research || "",
