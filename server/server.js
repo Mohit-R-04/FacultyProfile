@@ -2,12 +2,12 @@ const express = require("express");
 const sqlite3 = require("sqlite3").verbose();
 const path = require("path");
 const multer = require("multer");
-const bcrypt = require("bcryptjs"); // Using bcryptjs for password hashing
+const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const fs = require("fs");
 
 const app = express();
-const PORT = process.env.PORT || 3000; // Render-compatible PORT
+const PORT = process.env.PORT || 3000;
 const JWT_SECRET =
   process.env.JWT_SECRET || "your-very-secure-secret-key-1234567890";
 
@@ -36,9 +36,10 @@ const db = new sqlite3.Database(dbPath, (err) => {
   else console.log("Connected to SQLite database - SSN College of Engineering");
 });
 
-// Database Schema and Initial Seeding (Only Users, No Profiles)
+// Database Schema and Initial Seeding
 db.serialize(async () => {
   db.run("DROP TABLE IF EXISTS users");
+  db.run("DROP TABLE IF EXISTS profiles");
   db.run(`
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -46,6 +47,20 @@ db.serialize(async () => {
       password TEXT NOT NULL,
       phone_number TEXT UNIQUE NOT NULL,
       role TEXT NOT NULL CHECK(role IN ('staff', 'manager'))
+    )
+  `);
+  db.run(`
+    CREATE TABLE IF NOT EXISTS profiles (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL UNIQUE,
+      name TEXT NOT NULL,
+      department TEXT NOT NULL,
+      bio TEXT,
+      profile_pic TEXT,
+      qualifications TEXT,
+      experience TEXT,
+      research TEXT,
+      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
     )
   `);
 
@@ -77,6 +92,14 @@ const getQuery = (query, params) =>
     db.get(query, params, (err, row) => {
       if (err) reject(err);
       else resolve(row);
+    });
+  });
+
+const allQuery = (query, params) =>
+  new Promise((resolve, reject) => {
+    db.all(query, params, (err, rows) => {
+      if (err) reject(err);
+      else resolve(rows);
     });
   });
 
@@ -112,7 +135,7 @@ app.post("/login", async (req, res) => {
   }
   try {
     const user = await getQuery("SELECT * FROM users WHERE email = ?", [email]);
-    console.log("Login attempt for:", email, "User found:", user); // Debug log
+    console.log("Login attempt for:", email, "User found:", user);
     if (!user || !(await bcrypt.compare(password, user.password))) {
       console.log(`Login failed: Invalid credentials for ${email}`);
       return res
@@ -137,6 +160,95 @@ app.post("/login", async (req, res) => {
       .json({ success: false, message: "Server error: " + err.message });
   }
 });
+
+// Add Faculty (Manager Only)
+app.post(
+  "/profiles",
+  authenticateToken,
+  upload.single("profile_pic"),
+  async (req, res) => {
+    if (req.user.role !== "manager") {
+      console.log(`Unauthorized add attempt by ${req.user.email}`);
+      return res
+        .status(403)
+        .json({ success: false, message: "Manager access required" });
+    }
+    const {
+      email,
+      password,
+      phone_number,
+      name,
+      department,
+      bio,
+      research,
+      qualifications,
+      experience,
+    } = req.body;
+    const profilePic = req.file ? `/uploads/${req.file.filename}` : null;
+
+    console.log("Adding faculty:", {
+      email,
+      phone_number,
+      name,
+      department,
+      profilePic,
+    }); // Debug
+
+    if (!email || !password || !phone_number || !name || !department) {
+      console.log("Missing required fields:", {
+        email,
+        password,
+        phone_number,
+        name,
+        department,
+      });
+      return res.status(400).json({
+        success: false,
+        message:
+          "Email, password, phone number, name, and department are required",
+      });
+    }
+
+    try {
+      const hash = await bcrypt.hash(password, 10);
+      const userResult = await runQuery(
+        "INSERT INTO users (email, password, phone_number, role) VALUES (?, ?, ?, ?)",
+        [email, hash, phone_number, "staff"]
+      );
+      const userId = userResult.lastID;
+
+      const profileResult = await runQuery(
+        "INSERT INTO profiles (user_id, name, department, bio, profile_pic, research, qualifications, experience) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        [
+          userId,
+          name,
+          department,
+          bio || "",
+          profilePic || null,
+          research || "",
+          qualifications || "",
+          experience || "",
+        ]
+      );
+      const newProfile = await getQuery("SELECT * FROM profiles WHERE id = ?", [
+        profileResult.lastID,
+      ]);
+      console.log(
+        `Faculty added: ${name} (ID: ${profileResult.lastID}) by ${req.user.email}`
+      );
+      res.json({
+        success: true,
+        profile: newProfile,
+        message: "Faculty added successfully",
+      });
+    } catch (err) {
+      console.error("Add faculty error:", err);
+      res
+        .status(500)
+        .json({ success: false, message: "Server error: " + err.message });
+    }
+  }
+);
 
 // Start Server
 app.listen(PORT, () => {
