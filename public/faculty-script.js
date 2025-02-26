@@ -55,6 +55,7 @@ const showToast = (message, type = "success") => {
 
 // Validate Token
 async function validateToken(token) {
+  if (!token || !facultyId) return false;
   try {
     const res = await fetch(`${API_URL}/profiles/${facultyId}`, {
       headers: { Authorization: `Bearer ${token}` },
@@ -142,9 +143,9 @@ if (elements.loginForm) {
 
 // Load Faculty Profile
 async function loadFacultyProfile() {
-  if (!facultyId) {
-    showToast("No faculty ID provided in URL", "error");
-    console.error("No faculty ID provided in URL");
+  if (!facultyId || facultyId === "undefined") {
+    showToast("No valid faculty ID provided in URL", "error");
+    console.error("No valid faculty ID provided in URL:", facultyId);
     if (elements.facultyName)
       elements.facultyName.textContent = "Invalid Profile";
     return;
@@ -231,6 +232,10 @@ if (elements.editBtn) {
       currentProfile.qualifications || "";
     elements.profileForm.experience.value = currentProfile.experience || "";
     elements.profileForm.profile_pic.value = "";
+    elements.profileForm.querySelector("#email-group").style.display = "none";
+    elements.profileForm.querySelector("#password-group").style.display =
+      "none";
+    elements.profileForm.querySelector("#phone-group").style.display = "none";
   });
 }
 
@@ -308,7 +313,7 @@ if (elements.exportPdf) {
 // Back Button
 if (elements.backBtn) {
   elements.backBtn.addEventListener("click", () => {
-    window.location.href = `${API_URL}/index.html`;
+    window.location.href = "/index.html"; // Simplified to relative path
   });
 }
 

@@ -144,7 +144,9 @@ app.post("/login", async (req, res) => {
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role },
       JWT_SECRET,
-      { expiresIn: "1h" }
+      {
+        expiresIn: "1h",
+      }
     );
     console.log(`User logged in: ${email}`);
     res.json({
@@ -164,10 +166,30 @@ app.post("/login", async (req, res) => {
 app.get("/profiles", async (req, res) => {
   try {
     const profiles = await allQuery("SELECT * FROM profiles", []);
-    console.log("Fetched faculty profiles:", profiles.length, profiles);
+    console.log("Fetched IT faculty profiles:", profiles.length, profiles);
     res.json(profiles);
   } catch (err) {
     console.error("Fetch profiles error:", err);
+    res
+      .status(500)
+      .json({ success: false, message: "Server error: " + err.message });
+  }
+});
+
+// Get Single Profile (Public)
+app.get("/profiles/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const profile = await getQuery("SELECT * FROM profiles WHERE id = ?", [id]);
+    if (profile) {
+      console.log(`Fetched IT faculty profile ${id}:`, profile);
+      res.json(profile);
+    } else {
+      console.log(`IT faculty profile not found: ${id}`);
+      res.status(404).json({ success: false, message: "Profile not found" });
+    }
+  } catch (err) {
+    console.error("Fetch profile error:", err);
     res
       .status(500)
       .json({ success: false, message: "Server error: " + err.message });
@@ -252,6 +274,193 @@ app.post(
     }
   }
 );
+
+// Update Profile (Staff Own or Manager)
+app.put(
+  "/profiles/:id",
+  authenticateToken,
+  upload.single("profile_pic"),
+  async (req, res) => {
+    const { id } = req.params;
+    const { name, bio, research, qualifications, experience } = req.body;
+    const profilePic = req.file ? `/uploads/${req.file.filename}` : null;
+
+    console.log("Update request:", {
+      id,
+      name,
+      bio,
+      profilePic,
+      research,
+      qualifications,
+      experience,
+    });
+
+    if (!name) {
+      console.log("Missing required field: name");
+      return res
+        .status(400)
+        .json({ success: false, message: "Name is required" });
+    }
+
+    try {
+      const profile = await getQuery(
+        "SELECT user_id, profile_pic FROM profiles WHERE id = ?",
+        [id]
+      );
+      if (!profile) {
+        console.log(`Faculty profile not found: ${id}`);
+        return res
+          .status(404)
+          .json({ success: false, message: "Profile not found" });
+      }
+
+      if (
+        req.user.role !== "manager" &&
+        req.user.id !== profile.user_id.toString()
+      ) {
+        console.log(
+          `Unauthorized update by ${req.user.email} on profile ${id}`
+        );
+        return res.status(403).json({
+          success: false,
+          message: "Unauthorized: Can only edit own profile",
+        });
+      }
+
+      if (
+        profilePic &&
+        profile.profile_pic &&
+        fs.existsSync(path.join(__dirname, profile.profile_pic))
+      ) {
+        fs.unlinkSync(path.join(__dirname, profile.profile_pic));
+        console.log(
+          `Deleted old faculty profile picture: ${profile.profile_pic}`
+        );
+      }
+
+      const updateQuery = profilePic
+        ? "UPDATE profiles SET name = ?, bio = ?, profile_pic = ?, research = ?, qualifications = ?, experience = ? WHERE id = ?"
+        : "UPDATE profiles SET name = ?, bio = ?, research = ?, qualifications = ?, experience = ? WHERE id = ?";
+      const params = profilePic
+        ? [
+            name,
+            bio || "",
+            profilePic,
+            research || "",
+            qualifications || "",
+            experience || "",
+            id,
+          ]
+        : [
+            name,
+            bio || "",
+            research || "",
+            qualifications || "",
+            experience || "",
+            id,
+          ];
+
+      await runQuery(updateQuery, params);
+      const updatedProfile = await getQuery(
+        "SELECT * FROM profiles WHERE id = ?",
+        [id]
+      );
+      console.log(`Faculty profile updated: ${id}`, updatedProfile);
+      res.json({
+        success: true,
+        profile: updatedProfile,
+        message: "Profile updated successfully",
+      });
+    } catch (err) {
+      console.error("Update profile error:", err);
+      res
+        .status(500)
+        .json({ success: false, message: "Server error: " + err.message });
+    }
+  }
+);
+
+// Delete Profile (Manager Only)
+app.delete("/profiles/:id", authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  if (req.user.role !== "manager") {
+    console.log(`Unauthorized delete attempt by ${req.user.email}`);
+    return res
+      .status(403)
+      .json({ success: false, message: "Manager access required" });
+  }
+
+  try {
+    const profile = await getQuery(
+      "SELECT profile_pic FROM profiles WHERE id = ?",
+      [id]
+    );
+    if (!profile) {
+      console.log(`Faculty profile not found: ${id}`);
+      return res
+        .status(404)
+        .json({ success: false, message: "Profile not found" });
+    }
+
+    if (
+      profile.profile_pic &&
+      fs.existsSync(path.join(__dirname, profile.profile_pic))
+    ) {
+      fs.unlinkSync(path.join(__dirname, profile.profile_pic));
+      console.log(`Deleted faculty profile picture: ${profile.profile_pic}`);
+    }
+
+    await runQuery("DELETE FROM profiles WHERE id = ?", [id]);
+    await runQuery(
+      "DELETE FROM users WHERE id = (SELECT user_id FROM profiles WHERE id = ?)",
+      [id]
+    );
+    console.log(`Faculty profile deleted: ${id} by ${req.user.email}`);
+    res.json({ success: true, message: "Profile deleted successfully" });
+  } catch (err) {
+    console.error("Delete profile error:", err);
+    res
+      .status(500)
+      .json({ success: false, message: "Server error: " + err.message });
+  }
+});
+
+// Reset Password
+app.post("/reset-password", async (req, res) => {
+  const { phone_number, new_password } = req.body;
+  if (!phone_number || !new_password) {
+    return res.status(400).json({
+      success: false,
+      message: "Phone number and new password required",
+    });
+  }
+  try {
+    const user = await getQuery("SELECT id FROM users WHERE phone_number = ?", [
+      phone_number,
+    ]);
+    if (!user) {
+      console.log(
+        `Reset password failed: No user found for phone ${phone_number}`
+      );
+      return res.status(404).json({
+        success: false,
+        message: "User not found with this phone number",
+      });
+    }
+    const newHash = await bcrypt.hash(new_password, 10);
+    await runQuery("UPDATE users SET password = ? WHERE id = ?", [
+      newHash,
+      user.id,
+    ]);
+    console.log(`Password reset for user with phone ${phone_number}`);
+    res.json({ success: true, message: "Password reset successfully" });
+  } catch (err) {
+    console.error("Reset password error:", err);
+    res
+      .status(500)
+      .json({ success: false, message: "Server error: " + err.message });
+  }
+});
 
 // Start Server
 app.listen(PORT, () => {

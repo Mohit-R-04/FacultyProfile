@@ -219,48 +219,48 @@ function renderProfiles(data) {
     const card = document.createElement("div");
     card.className = "profile-card";
     card.innerHTML = `
-            <div class="card-header">
-                <img src="${
-                  profile.profile_pic
-                    ? `${API_URL}${profile.profile_pic}?t=${Date.now()}`
-                    : "https://via.placeholder.com/100"
-                }" alt="${profile.name}" class="card-avatar">
-                <h3>${profile.name}</h3>
-            </div>
-            <div class="card-body">
-                <p><i class="fas fa-info-circle"></i> ${
-                  profile.bio?.substring(0, 50) || "No bio"
-                }...</p>
-            </div>
-            <div class="card-actions">
-                <button onclick="window.location.href='/faculty-profile.html?id=${
-                  profile._id
-                }'" class="btn btn-primary btn-small">
-                    <i class="fas fa-eye"></i> View
-                </button>
-                ${
-                  currentUser &&
-                  (currentUser.id === profile.user_id.toString() ||
-                    currentUser.role === "manager")
-                    ? `
-                    <button onclick="editProfile('${
-                      profile._id
-                    }')" class="btn btn-secondary btn-small">
-                        <i class="fas fa-edit"></i> Edit
-                    </button>
-                    ${
-                      currentUser.role === "manager"
-                        ? `
-                        <button onclick="deleteProfile('${profile._id}')" class="btn btn-danger btn-small">
-                            <i class="fas fa-trash"></i> Delete
-                        </button>
-                    `
-                        : ""
-                    }`
-                    : ""
-                }
-            </div>
-        `;
+      <div class="card-header">
+        <img src="${
+          profile.profile_pic
+            ? `${API_URL}${profile.profile_pic}?t=${Date.now()}`
+            : "https://via.placeholder.com/100"
+        }" alt="${profile.name}" class="card-avatar">
+        <h3>${profile.name}</h3>
+      </div>
+      <div class="card-body">
+        <p><i class="fas fa-info-circle"></i> ${
+          profile.bio?.substring(0, 50) || "No bio"
+        }...</p>
+      </div>
+      <div class="card-actions">
+        <button onclick="window.location.href='/faculty-profile.html?id=${
+          profile.id
+        }'" class="btn btn-primary btn-small">
+          <i class="fas fa-eye"></i> View
+        </button>
+        ${
+          currentUser &&
+          (currentUser.id === profile.user_id.toString() ||
+            currentUser.role === "manager")
+            ? `
+          <button onclick="editProfile('${
+            profile.id
+          }')" class="btn btn-secondary btn-small">
+            <i class="fas fa-edit"></i> Edit
+          </button>
+          ${
+            currentUser.role === "manager"
+              ? `
+            <button onclick="deleteProfile('${profile.id}')" class="btn btn-danger btn-small">
+              <i class="fas fa-trash"></i> Delete
+            </button>
+          `
+              : ""
+          }`
+            : ""
+        }
+      </div>
+    `;
     elements.profileGrid.appendChild(card);
   });
   updateStats(data);
@@ -277,16 +277,16 @@ function renderAdminDashboard() {
     const card = document.createElement("div");
     card.className = "profile-card";
     card.innerHTML = `
-            <h3>${profile.name}</h3>
-            <div class="card-actions">
-                <button onclick="editProfile('${profile._id}')" class="btn btn-secondary btn-small">
-                    <i class="fas fa-edit"></i> Edit
-                </button>
-                <button onclick="deleteProfile('${profile._id}')" class="btn btn-danger btn-small">
-                    <i class="fas fa-trash"></i> Delete
-                </button>
-            </div>
-        `;
+      <h3>${profile.name}</h3>
+      <div class="card-actions">
+        <button onclick="editProfile('${profile.id}')" class="btn btn-secondary btn-small">
+          <i class="fas fa-edit"></i> Edit
+        </button>
+        <button onclick="deleteProfile('${profile.id}')" class="btn btn-danger btn-small">
+          <i class="fas fa-trash"></i> Delete
+        </button>
+      </div>
+    `;
     elements.adminProfiles.appendChild(card);
   });
 }
@@ -303,7 +303,7 @@ function editProfile(id) {
     showToast("Invalid profile ID", "error");
     return;
   }
-  const profile = profiles.find((p) => p._id === id);
+  const profile = profiles.find((p) => p.id === id); // Changed from _id to id
   if (!currentUser) {
     showToast("Please login to edit profiles", "error");
     return;
@@ -316,7 +316,7 @@ function editProfile(id) {
     return;
   }
   elements.editTitle.innerHTML = `<i class="fas fa-user-edit"></i> Edit IT Faculty Profile`;
-  elements.profileForm.id.value = profile._id;
+  elements.profileForm.id.value = profile.id; // Changed from _id to id
   elements.profileForm.name.value = profile.name;
   elements.profileForm.bio.value = profile.bio || "";
   elements.profileForm.research.value = profile.research || "";
@@ -342,7 +342,7 @@ function editProfile(id) {
       console.log("Update response:", data);
       if (data.success) {
         elements.editModal.classList.add("hidden");
-        const index = profiles.findIndex((p) => p._id === id);
+        const index = profiles.findIndex((p) => p.id === id); // Changed from _id to id
         profiles[index] = data.profile;
         renderProfiles(profiles);
         if (currentUser.role === "manager") renderAdminDashboard();
@@ -406,6 +406,8 @@ if (elements.addStaffBtn) {
           renderProfiles(profiles);
           if (currentUser.role === "manager") renderAdminDashboard();
           showToast(`IT faculty added: ${formData.get("name")}`);
+          // Redirect to the new faculty profile
+          window.location.href = `/faculty-profile.html?id=${data.profile.id}`;
         } else {
           showToast(`Failed to add IT faculty: ${data.message}`, "error");
         }
@@ -437,7 +439,7 @@ async function deleteProfile(id) {
       const data = await res.json();
       console.log("Delete response:", data);
       if (data.success) {
-        profiles = profiles.filter((p) => p._id !== id);
+        profiles = profiles.filter((p) => p.id !== id); // Changed from _id to id
         renderProfiles(profiles);
         if (currentUser.role === "manager") renderAdminDashboard();
         showToast(`IT faculty profile deleted (ID: ${id})`);
