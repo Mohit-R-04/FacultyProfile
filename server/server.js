@@ -2,12 +2,12 @@ const express = require("express");
 const sqlite3 = require("sqlite3").verbose();
 const path = require("path");
 const multer = require("multer");
-const bcrypt = require("bcrypt");
+const bcrypt = require("bcryptjs"); // Switched to bcryptjs
 const jwt = require("jsonwebtoken");
 const fs = require("fs");
 
 const app = express();
-const PORT = process.env.PORT || 3000; // Heroku-compatible PORT
+const PORT = process.env.PORT || 3000; // Render-compatible PORT
 const JWT_SECRET =
   process.env.JWT_SECRET || "your-very-secure-secret-key-1234567890";
 
@@ -41,29 +41,29 @@ db.serialize(async () => {
   db.run("DROP TABLE IF EXISTS profiles");
   db.run("DROP TABLE IF EXISTS users");
   db.run(`
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            email TEXT UNIQUE NOT NULL,
-            password TEXT NOT NULL,
-            phone_number TEXT UNIQUE NOT NULL,
-            role TEXT NOT NULL CHECK(role IN ('staff', 'manager'))
-        )
-    `);
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      email TEXT UNIQUE NOT NULL,
+      password TEXT NOT NULL,
+      phone_number TEXT UNIQUE NOT NULL,
+      role TEXT NOT NULL CHECK(role IN ('staff', 'manager'))
+    )
+  `);
 
   db.run(`
-        CREATE TABLE IF NOT EXISTS profiles (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL UNIQUE,
-            name TEXT NOT NULL,
-            department TEXT NOT NULL,
-            bio TEXT,
-            profile_pic TEXT,
-            qualifications TEXT,
-            experience TEXT,
-            research TEXT,
-            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
-        )
-    `);
+    CREATE TABLE IF NOT EXISTS profiles (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL UNIQUE,
+      name TEXT NOT NULL,
+      department TEXT NOT NULL,
+      bio TEXT,
+      profile_pic TEXT,
+      qualifications TEXT,
+      experience TEXT,
+      research TEXT,
+      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+  `);
 
   console.log("Seeding initial data for SSN College of Engineering...");
   const hashAdmin = await bcrypt.hash("admin123", 10);
@@ -82,8 +82,14 @@ db.serialize(async () => {
     ["john.doe@ssn.edu.in", hashStaff1, "9876543210", "staff"]
   );
   await runQuery(
-    "INSERT INTO profiles (user_id, name, department, bio) VALUES (?, ?, ?, ?)",
-    [2, "Dr. John Doe", "CS", "Professor of Computer Science"]
+    "INSERT INTO profiles (user_id, name, department, bio, profile_pic) VALUES (?, ?, ?, ?, ?)",
+    [
+      2,
+      "Dr. John Doe",
+      "CS",
+      "Professor of Computer Science",
+      "/uploads/placeholder.jpg",
+    ]
   );
   console.log("Seeded john.doe@ssn.edu.in / john123 / 9876543210 (staff - CS)");
 
@@ -92,8 +98,14 @@ db.serialize(async () => {
     ["jane.smith@ssn.edu.in", hashStaff2, "5555555555", "staff"]
   );
   await runQuery(
-    "INSERT INTO profiles (user_id, name, department, bio) VALUES (?, ?, ?, ?)",
-    [3, "Prof. Jane Smith", "EE", "Electrical Engineering Researcher"]
+    "INSERT INTO profiles (user_id, name, department, bio, profile_pic) VALUES (?, ?, ?, ?, ?)",
+    [
+      3,
+      "Prof. Jane Smith",
+      "EE",
+      "Electrical Engineering Researcher",
+      "/uploads/placeholder.jpg",
+    ]
   );
   console.log(
     "Seeded jane.smith@ssn.edu.in / jane456 / 5555555555 (staff - EE)"
@@ -104,8 +116,14 @@ db.serialize(async () => {
     ["mike.lee@ssn.edu.in", hashStaff3, "4445556666", "staff"]
   );
   await runQuery(
-    "INSERT INTO profiles (user_id, name, department, bio) VALUES (?, ?, ?, ?)",
-    [4, "Dr. Mike Lee", "IT", "Information Technology Specialist"]
+    "INSERT INTO profiles (user_id, name, department, bio, profile_pic) VALUES (?, ?, ?, ?, ?)",
+    [
+      4,
+      "Dr. Mike Lee",
+      "IT",
+      "Information Technology Specialist",
+      "/uploads/placeholder.jpg",
+    ]
   );
   console.log("Seeded mike.lee@ssn.edu.in / mike789 / 4445556666 (staff - IT)");
 });
@@ -250,7 +268,9 @@ app.post(
       qualifications,
       experience,
     } = req.body;
-    const profilePic = req.file ? `/uploads/${req.file.filename}` : null;
+    const profilePic = req.file
+      ? `/uploads/${req.file.filename}`
+      : "/uploads/placeholder.jpg";
 
     if (!email || !password || !phone_number || !name || !department) {
       console.log("Missing required fields for add:", {
