@@ -1,5 +1,6 @@
 const API_URL =
   window.location.hostname === "localhost" ? "http://localhost:3000" : "";
+console.log("App running on:", API_URL);
 const { jsPDF } = window.jspdf;
 
 // DOM Elements
