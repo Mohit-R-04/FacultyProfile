@@ -1,2 +1,3 @@
 node_modules/
 *.log
+server/database.db  # Exclude SQLite file (will be recreated on Render)
