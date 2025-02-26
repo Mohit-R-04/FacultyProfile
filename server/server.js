@@ -1,5 +1,5 @@
 const express = require("express");
-const mongoose = require("mongoose");
+const sqlite3 = require("sqlite3").verbose();
 const path = require("path");
 const multer = require("multer");
 const bcrypt = require("bcrypt");
@@ -7,53 +7,14 @@ const jwt = require("jsonwebtoken");
 const fs = require("fs");
 
 const app = express();
-const PORT = 3000;
-const JWT_SECRET = "your-very-secure-secret-key-1234567890";
+const PORT = process.env.PORT || 3000; // Heroku-compatible PORT
+const JWT_SECRET =
+  process.env.JWT_SECRET || "your-very-secure-secret-key-1234567890";
 
 // Middleware
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "../public")));
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
-
-// MongoDB Connection
-mongoose
-  .connect("mongodb://localhost:27017/ssn_faculty", {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  })
-  .then(() => {
-    console.log("Connected to MongoDB - SSN College of Engineering");
-  })
-  .catch((err) => {
-    console.error("MongoDB connection error:", err);
-  });
-
-// MongoDB Schemas
-const userSchema = new mongoose.Schema({
-  email: { type: String, unique: true, required: true },
-  password: { type: String, required: true },
-  phone_number: { type: String, unique: true, required: true },
-  role: { type: String, enum: ["staff", "manager"], required: true },
-});
-
-const profileSchema = new mongoose.Schema({
-  user_id: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "User",
-    unique: true,
-    required: true,
-  },
-  name: { type: String, required: true },
-  department: { type: String, required: true, default: "IT" },
-  bio: String,
-  profile_pic: String,
-  qualifications: String,
-  experience: String,
-  research: String,
-});
-
-const User = mongoose.model("User", userSchema);
-const Profile = mongoose.model("Profile", profileSchema);
 
 // File Upload Setup
 const uploadDir = path.join(__dirname, "uploads");
@@ -68,44 +29,111 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// Initial Seeding (Only IT Department)
-const seedDatabase = async () => {
-  try {
-    const userCount = await User.countDocuments();
-    if (userCount === 0) {
-      console.log("Seeding initial data for SSN IT Faculty...");
-      const hashAdmin = await bcrypt.hash("admin123", 10);
-      const hashStaff1 = await bcrypt.hash("mike789", 10);
+// SQLite Database
+const dbPath = path.join(__dirname, "database.db");
+const db = new sqlite3.Database(dbPath, (err) => {
+  if (err) console.error("Database connection error:", err);
+  else console.log("Connected to SQLite database - SSN College of Engineering");
+});
 
-      const admin = await new User({
-        email: "admin@ssn.edu.in",
-        password: hashAdmin,
-        phone_number: "1234567890",
-        role: "manager",
-      }).save();
-      console.log("Seeded admin@ssn.edu.in / admin123 / 1234567890 (manager)");
+// Database Schema and Initial Seeding
+db.serialize(async () => {
+  db.run("DROP TABLE IF EXISTS profiles");
+  db.run("DROP TABLE IF EXISTS users");
+  db.run(`
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT UNIQUE NOT NULL,
+            password TEXT NOT NULL,
+            phone_number TEXT UNIQUE NOT NULL,
+            role TEXT NOT NULL CHECK(role IN ('staff', 'manager'))
+        )
+    `);
 
-      const staff1 = await new User({
-        email: "mike.lee@ssn.edu.in",
-        password: hashStaff1,
-        phone_number: "4445556666",
-        role: "staff",
-      }).save();
-      await new Profile({
-        user_id: staff1._id,
-        name: "Dr. Mike Lee",
-        department: "IT",
-        bio: "Information Technology Specialist",
-      }).save();
-      console.log(
-        "Seeded mike.lee@ssn.edu.in / mike789 / 4445556666 (staff - IT)"
-      );
-    }
-  } catch (err) {
-    console.error("Seeding error:", err);
-  }
-};
-seedDatabase();
+  db.run(`
+        CREATE TABLE IF NOT EXISTS profiles (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL UNIQUE,
+            name TEXT NOT NULL,
+            department TEXT NOT NULL,
+            bio TEXT,
+            profile_pic TEXT,
+            qualifications TEXT,
+            experience TEXT,
+            research TEXT,
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+    `);
+
+  console.log("Seeding initial data for SSN College of Engineering...");
+  const hashAdmin = await bcrypt.hash("admin123", 10);
+  const hashStaff1 = await bcrypt.hash("john123", 10);
+  const hashStaff2 = await bcrypt.hash("jane456", 10);
+  const hashStaff3 = await bcrypt.hash("mike789", 10);
+
+  await runQuery(
+    "INSERT INTO users (email, password, phone_number, role) VALUES (?, ?, ?, ?)",
+    ["admin@ssn.edu.in", hashAdmin, "1234567890", "manager"]
+  );
+  console.log("Seeded admin@ssn.edu.in / admin123 / 1234567890 (manager)");
+
+  await runQuery(
+    "INSERT INTO users (email, password, phone_number, role) VALUES (?, ?, ?, ?)",
+    ["john.doe@ssn.edu.in", hashStaff1, "9876543210", "staff"]
+  );
+  await runQuery(
+    "INSERT INTO profiles (user_id, name, department, bio) VALUES (?, ?, ?, ?)",
+    [2, "Dr. John Doe", "CS", "Professor of Computer Science"]
+  );
+  console.log("Seeded john.doe@ssn.edu.in / john123 / 9876543210 (staff - CS)");
+
+  await runQuery(
+    "INSERT INTO users (email, password, phone_number, role) VALUES (?, ?, ?, ?)",
+    ["jane.smith@ssn.edu.in", hashStaff2, "5555555555", "staff"]
+  );
+  await runQuery(
+    "INSERT INTO profiles (user_id, name, department, bio) VALUES (?, ?, ?, ?)",
+    [3, "Prof. Jane Smith", "EE", "Electrical Engineering Researcher"]
+  );
+  console.log(
+    "Seeded jane.smith@ssn.edu.in / jane456 / 5555555555 (staff - EE)"
+  );
+
+  await runQuery(
+    "INSERT INTO users (email, password, phone_number, role) VALUES (?, ?, ?, ?)",
+    ["mike.lee@ssn.edu.in", hashStaff3, "4445556666", "staff"]
+  );
+  await runQuery(
+    "INSERT INTO profiles (user_id, name, department, bio) VALUES (?, ?, ?, ?)",
+    [4, "Dr. Mike Lee", "IT", "Information Technology Specialist"]
+  );
+  console.log("Seeded mike.lee@ssn.edu.in / mike789 / 4445556666 (staff - IT)");
+});
+
+// Database Query Helpers
+const runQuery = (query, params) =>
+  new Promise((resolve, reject) => {
+    db.run(query, params, function (err) {
+      if (err) reject(err);
+      else resolve(this);
+    });
+  });
+
+const getQuery = (query, params) =>
+  new Promise((resolve, reject) => {
+    db.get(query, params, (err, row) => {
+      if (err) reject(err);
+      else resolve(row);
+    });
+  });
+
+const allQuery = (query, params) =>
+  new Promise((resolve, reject) => {
+    db.all(query, params, (err, rows) => {
+      if (err) reject(err);
+      else resolve(rows);
+    });
+  });
 
 // Authentication Middleware
 const authenticateToken = (req, res, next) => {
@@ -129,6 +157,7 @@ const authenticateToken = (req, res, next) => {
 
 // API Endpoints
 
+// Login
 app.post("/login", async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) {
@@ -137,7 +166,7 @@ app.post("/login", async (req, res) => {
       .json({ success: false, message: "Email and password required" });
   }
   try {
-    const user = await User.findOne({ email });
+    const user = await getQuery("SELECT * FROM users WHERE email = ?", [email]);
     if (!user || !(await bcrypt.compare(password, user.password))) {
       console.log(`Login failed: Invalid credentials for ${email}`);
       return res
@@ -145,14 +174,14 @@ app.post("/login", async (req, res) => {
         .json({ success: false, message: "Invalid email or password" });
     }
     const token = jwt.sign(
-      { id: user._id, email: user.email, role: user.role },
+      { id: user.id, email: user.email, role: user.role },
       JWT_SECRET,
       { expiresIn: "1h" }
     );
     console.log(`User logged in: ${email}`);
     res.json({
       success: true,
-      user: { id: user._id, email: user.email, role: user.role },
+      user: { id: user.id, email: user.email, role: user.role },
       token,
     });
   } catch (err) {
@@ -163,10 +192,11 @@ app.post("/login", async (req, res) => {
   }
 });
 
+// Get All Profiles (Public)
 app.get("/profiles", async (req, res) => {
   try {
-    const profiles = await Profile.find({ department: "IT" });
-    console.log("Fetched IT faculty profiles:", profiles.length, profiles);
+    const profiles = await allQuery("SELECT * FROM profiles", []);
+    console.log("Fetched faculty profiles:", profiles.length, profiles);
     res.json(profiles);
   } catch (err) {
     console.error("Fetch profiles error:", err);
@@ -176,25 +206,18 @@ app.get("/profiles", async (req, res) => {
   }
 });
 
+// Get Single Profile (Public)
 app.get("/profiles/:id", async (req, res) => {
-  const { id } = req.params;
-  if (!id || !mongoose.Types.ObjectId.isValid(id)) {
-    console.log(`Invalid profile ID: ${id}`);
-    return res
-      .status(400)
-      .json({ success: false, message: "Invalid profile ID" });
-  }
   try {
-    const profile = await Profile.findById(id);
-    if (profile && profile.department === "IT") {
-      console.log(`Fetched IT faculty profile ${id}:`, profile);
+    const profile = await getQuery("SELECT * FROM profiles WHERE id = ?", [
+      req.params.id,
+    ]);
+    if (profile) {
+      console.log(`Fetched faculty profile ${req.params.id}:`, profile);
       res.json(profile);
     } else {
-      console.log(`IT faculty profile not found: ${id}`);
-      res.status(404).json({
-        success: false,
-        message: "Profile not found or not in IT department",
-      });
+      console.log(`Faculty profile not found: ${req.params.id}`);
+      res.status(404).json({ success: false, message: "Profile not found" });
     }
   } catch (err) {
     console.error("Fetch profile error:", err);
@@ -204,6 +227,7 @@ app.get("/profiles/:id", async (req, res) => {
   }
 });
 
+// Add Faculty (Manager Only)
 app.post(
   "/profiles",
   authenticateToken,
@@ -220,6 +244,7 @@ app.post(
       password,
       phone_number,
       name,
+      department,
       bio,
       research,
       qualifications,
@@ -227,45 +252,51 @@ app.post(
     } = req.body;
     const profilePic = req.file ? `/uploads/${req.file.filename}` : null;
 
-    if (!email || !password || !phone_number || !name) {
+    if (!email || !password || !phone_number || !name || !department) {
       console.log("Missing required fields for add:", {
         email,
         password,
         phone_number,
         name,
+        department,
       });
       return res.status(400).json({
         success: false,
-        message: "Email, password, phone number, and name are required",
+        message:
+          "Email, password, phone number, name, and department are required",
       });
     }
 
     try {
       const hash = await bcrypt.hash(password, 10);
-      const user = await new User({
-        email,
-        password: hash,
-        phone_number,
-        role: "staff",
-      }).save();
+      const userResult = await runQuery(
+        "INSERT INTO users (email, password, phone_number, role) VALUES (?, ?, ?, ?)",
+        [email, hash, phone_number, "staff"]
+      );
+      const userId = userResult.lastID;
 
-      const profile = await new Profile({
-        user_id: user._id,
-        name,
-        department: "IT",
-        bio,
-        profile_pic: profilePic,
-        research,
-        qualifications,
-        experience,
-      }).save();
-
+      const profileResult = await runQuery(
+        "INSERT INTO profiles (user_id, name, department, bio, profile_pic, research, qualifications, experience) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        [
+          userId,
+          name,
+          department,
+          bio,
+          profilePic,
+          research,
+          qualifications,
+          experience,
+        ]
+      );
+      const newProfile = await getQuery("SELECT * FROM profiles WHERE id = ?", [
+        profileResult.lastID,
+      ]);
       console.log(
-        `IT faculty added: ${name} (ID: ${profile._id}) by ${req.user.email}`
+        `Faculty added: ${name} (ID: ${profileResult.lastID}) by ${req.user.email}`
       );
       res.json({
         success: true,
-        profile,
+        profile: newProfile,
         message: "Faculty added successfully",
       });
     } catch (err) {
@@ -277,24 +308,21 @@ app.post(
   }
 );
 
+// Update Profile (Staff Own or Manager)
 app.put(
   "/profiles/:id",
   authenticateToken,
   upload.single("profile_pic"),
   async (req, res) => {
     const { id } = req.params;
-    if (!id || !mongoose.Types.ObjectId.isValid(id)) {
-      console.log(`Invalid profile ID: ${id}`);
-      return res
-        .status(400)
-        .json({ success: false, message: "Invalid profile ID" });
-    }
-    const { name, bio, research, qualifications, experience } = req.body;
+    const { name, department, bio, research, qualifications, experience } =
+      req.body;
     const profilePic = req.file ? `/uploads/${req.file.filename}` : null;
 
     console.log("Update request:", {
       id,
       name,
+      department,
       bio,
       profilePic,
       research,
@@ -302,27 +330,26 @@ app.put(
       experience,
     });
 
-    if (!name) {
-      console.log("Missing required field: name");
+    if (!name || !department) {
+      console.log("Missing required fields for update:", { name, department });
       return res
         .status(400)
-        .json({ success: false, message: "Name is required" });
+        .json({ success: false, message: "Name and department are required" });
     }
 
     try {
-      const profile = await Profile.findById(id);
-      if (!profile || profile.department !== "IT") {
-        console.log(`IT faculty profile not found: ${id}`);
-        return res.status(404).json({
-          success: false,
-          message: "Profile not found or not in IT department",
-        });
+      const profile = await getQuery(
+        "SELECT user_id, profile_pic FROM profiles WHERE id = ?",
+        [id]
+      );
+      if (!profile) {
+        console.log(`Faculty profile not found: ${id}`);
+        return res
+          .status(404)
+          .json({ success: false, message: "Profile not found" });
       }
 
-      if (
-        req.user.role !== "manager" &&
-        req.user.id !== profile.user_id.toString()
-      ) {
+      if (req.user.role !== "manager" && req.user.id !== profile.user_id) {
         console.log(
           `Unauthorized update by ${req.user.email} on profile ${id}`
         );
@@ -343,15 +370,36 @@ app.put(
         );
       }
 
-      profile.name = name;
-      profile.bio = bio || profile.bio;
-      profile.profile_pic = profilePic || profile.profile_pic;
-      profile.research = research || profile.research;
-      profile.qualifications = qualifications || profile.qualifications;
-      profile.experience = experience || profile.experience;
+      const updateQuery = profilePic
+        ? "UPDATE profiles SET name = ?, department = ?, bio = ?, profile_pic = ?, research = ?, qualifications = ?, experience = ? WHERE id = ?"
+        : "UPDATE profiles SET name = ?, department = ?, bio = ?, research = ?, qualifications = ?, experience = ? WHERE id = ?";
+      const params = profilePic
+        ? [
+            name,
+            department,
+            bio,
+            profilePic,
+            research || "",
+            qualifications || "",
+            experience || "",
+            id,
+          ]
+        : [
+            name,
+            department,
+            bio,
+            research || "",
+            qualifications || "",
+            experience || "",
+            id,
+          ];
 
-      const updatedProfile = await profile.save();
-      console.log(`IT faculty profile updated: ${id}`, updatedProfile);
+      await runQuery(updateQuery, params);
+      const updatedProfile = await getQuery(
+        "SELECT * FROM profiles WHERE id = ?",
+        [id]
+      );
+      console.log(`Faculty profile updated: ${id}`, updatedProfile);
       res.json({
         success: true,
         profile: updatedProfile,
@@ -366,14 +414,9 @@ app.put(
   }
 );
 
+// Delete Profile (Manager Only)
 app.delete("/profiles/:id", authenticateToken, async (req, res) => {
   const { id } = req.params;
-  if (!id || !mongoose.Types.ObjectId.isValid(id)) {
-    console.log(`Invalid profile ID: ${id}`);
-    return res
-      .status(400)
-      .json({ success: false, message: "Invalid profile ID" });
-  }
 
   if (req.user.role !== "manager") {
     console.log(`Unauthorized delete attempt by ${req.user.email}`);
@@ -383,13 +426,15 @@ app.delete("/profiles/:id", authenticateToken, async (req, res) => {
   }
 
   try {
-    const profile = await Profile.findById(id);
-    if (!profile || profile.department !== "IT") {
-      console.log(`IT faculty profile not found: ${id}`);
-      return res.status(404).json({
-        success: false,
-        message: "Profile not found or not in IT department",
-      });
+    const profile = await getQuery(
+      "SELECT profile_pic FROM profiles WHERE id = ?",
+      [id]
+    );
+    if (!profile) {
+      console.log(`Faculty profile not found: ${id}`);
+      return res
+        .status(404)
+        .json({ success: false, message: "Profile not found" });
     }
 
     if (
@@ -400,8 +445,8 @@ app.delete("/profiles/:id", authenticateToken, async (req, res) => {
       console.log(`Deleted faculty profile picture: ${profile.profile_pic}`);
     }
 
-    await Profile.deleteOne({ _id: id });
-    console.log(`IT faculty profile deleted: ${id} by ${req.user.email}`);
+    await runQuery("DELETE FROM profiles WHERE id = ?", [id]);
+    console.log(`Faculty profile deleted: ${id} by ${req.user.email}`);
     res.json({ success: true, message: "Profile deleted successfully" });
   } catch (err) {
     console.error("Delete profile error:", err);
@@ -411,6 +456,7 @@ app.delete("/profiles/:id", authenticateToken, async (req, res) => {
   }
 });
 
+// Reset Password (Using Phone Number)
 app.post("/reset-password", async (req, res) => {
   const { phone_number, new_password } = req.body;
   if (!phone_number || !new_password) {
@@ -420,7 +466,9 @@ app.post("/reset-password", async (req, res) => {
     });
   }
   try {
-    const user = await User.findOne({ phone_number });
+    const user = await getQuery("SELECT id FROM users WHERE phone_number = ?", [
+      phone_number,
+    ]);
     if (!user) {
       console.log(
         `Reset password failed: No user found for phone ${phone_number}`
@@ -431,8 +479,10 @@ app.post("/reset-password", async (req, res) => {
       });
     }
     const newHash = await bcrypt.hash(new_password, 10);
-    user.password = newHash;
-    await user.save();
+    await runQuery("UPDATE users SET password = ? WHERE id = ?", [
+      newHash,
+      user.id,
+    ]);
     console.log(`Password reset for user with phone ${phone_number}`);
     res.json({ success: true, message: "Password reset successfully" });
   } catch (err) {
@@ -445,7 +495,5 @@ app.post("/reset-password", async (req, res) => {
 
 // Start Server
 app.listen(PORT, () => {
-  console.log(
-    `Server running on http://localhost:${PORT} - SSN College of Engineering`
-  );
+  console.log(`Server running on port ${PORT} - SSN College of Engineering`);
 });

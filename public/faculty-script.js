@@ -52,20 +52,34 @@ const showToast = (message, type = "success") => {
   toastTimeouts.push(timeout);
 };
 
+// Validate Token
+async function validateToken(token) {
+  try {
+    const res = await fetch(`${API_URL}/profiles/${facultyId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) throw new Error("Token validation failed");
+    return true;
+  } catch (err) {
+    console.error("Token validation error:", err);
+    return false;
+  }
+}
+
 // Theme Management
 if (elements.themeToggle) {
-  elements.themeToggle.addEventListener("click", () => {
-    document.body.classList.toggle("dark-theme");
-    const isDark = document.body.classList.contains("dark-theme");
-    elements.themeToggle.innerHTML = `<i class="fas fa-${
-      isDark ? "sun" : "moon"
-    }"></i>`;
-    localStorage.setItem("theme", isDark ? "dark" : "light");
+  elements.themeToggle.addEventListener("change", () => {
+    document.body.classList.toggle("dark-theme", elements.themeToggle.checked);
+    localStorage.setItem(
+      "theme",
+      elements.themeToggle.checked ? "dark" : "light"
+    );
   });
 
-  if (localStorage.getItem("theme") === "dark") {
+  const savedTheme = localStorage.getItem("theme");
+  if (savedTheme === "dark") {
     document.body.classList.add("dark-theme");
-    elements.themeToggle.innerHTML = '<i class="fas fa-sun"></i>';
+    elements.themeToggle.checked = true;
   }
 }
 
@@ -83,6 +97,7 @@ if (elements.logoutBtn) {
   elements.logoutBtn.addEventListener("click", () => {
     currentUser = null;
     localStorage.removeItem("token");
+    localStorage.removeItem("email");
     elements.loginBtn.classList.remove("hidden");
     elements.logoutBtn.classList.add("hidden");
     elements.userStatus.innerHTML = "";
@@ -107,6 +122,7 @@ if (elements.loginForm) {
       if (data.success) {
         currentUser = data.user;
         localStorage.setItem("token", data.token);
+        localStorage.setItem("email", data.user.email);
         elements.loginModal.classList.add("hidden");
         elements.loginBtn.classList.add("hidden");
         elements.logoutBtn.classList.remove("hidden");
@@ -134,7 +150,10 @@ async function loadFacultyProfile() {
   }
 
   try {
+    const token = localStorage.getItem("token");
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
     const res = await fetch(`${API_URL}/profiles/${facultyId}`, {
+      headers,
       cache: "no-store",
     });
     if (!res.ok) {
@@ -292,41 +311,46 @@ if (elements.backBtn) {
   });
 }
 
-// Initial Load
+// Initial Load with Token Validation
 async function initialize() {
   const token = localStorage.getItem("token");
   if (token) {
-    try {
-      const res = await fetch(`${API_URL}/profiles/${facultyId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error("Failed to fetch profile");
-      const data = await res.json();
-      currentProfile = data;
-      currentUser = {
-        id: data.user_id.toString(),
-        email: localStorage.getItem("email") || "Unknown",
-        role:
-          data.user_id.toString() ===
-          (await fetch(`${API_URL}/profiles`)
-            .then((res) => res.json())
-            .then(
-              (profiles) =>
-                profiles.find((p) => p.email === "admin@ssn.edu.in")?._id
-            ))
-            ? "manager"
-            : "staff",
-      };
-      localStorage.setItem("email", currentUser.email);
-      elements.logoutBtn.classList.remove("hidden");
-      elements.loginBtn.classList.add("hidden");
-      elements.userStatus.innerHTML = `<i class="fas fa-user"></i> ${currentUser.email} <span class="role-tag">${currentUser.role}</span>`;
-    } catch (err) {
-      console.error("Failed to initialize user:", err);
+    const isValid = await validateToken(token);
+    if (isValid) {
+      try {
+        const res = await fetch(`${API_URL}/profiles/${facultyId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) throw new Error("Failed to fetch profile");
+        const data = await res.json();
+        currentProfile = data;
+        currentUser = {
+          id: data.user_id.toString(),
+          email: localStorage.getItem("email") || "Unknown",
+          role:
+            localStorage.getItem("email") === "admin@ssn.edu.in"
+              ? "manager"
+              : "staff",
+        };
+        elements.loginBtn.classList.add("hidden");
+        elements.logoutBtn.classList.remove("hidden");
+        elements.userStatus.innerHTML = `<i class="fas fa-user"></i> ${currentUser.email} <span class="role-tag">${currentUser.role}</span>`;
+      } catch (err) {
+        console.error("Failed to initialize user:", err);
+        currentUser = null;
+        localStorage.removeItem("token");
+        localStorage.removeItem("email");
+        elements.loginBtn.classList.remove("hidden");
+        elements.logoutBtn.classList.add("hidden");
+        elements.userStatus.innerHTML = "";
+      }
+    } else {
       currentUser = null;
       localStorage.removeItem("token");
+      localStorage.removeItem("email");
       elements.loginBtn.classList.remove("hidden");
       elements.logoutBtn.classList.add("hidden");
+      elements.userStatus.innerHTML = "";
     }
   }
   loadFacultyProfile();

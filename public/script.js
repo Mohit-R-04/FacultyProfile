@@ -52,21 +52,34 @@ const showToast = (message, type = "success") => {
   toastTimeouts.push(timeout);
 };
 
+// Validate Token
+async function validateToken(token) {
+  try {
+    const res = await fetch(`${API_URL}/profiles`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) throw new Error("Token validation failed");
+    return true;
+  } catch (err) {
+    console.error("Token validation error:", err);
+    return false;
+  }
+}
+
 // Theme Management
 if (elements.themeToggle) {
-  elements.themeToggle.addEventListener("click", () => {
-    document.body.classList.toggle("dark-theme");
-    const isDark = document.body.classList.contains("dark-theme");
-    elements.themeToggle.innerHTML = `<i class="fas fa-${
-      isDark ? "sun" : "moon"
-    }"></i>`;
-    localStorage.setItem("theme", isDark ? "dark" : "light");
+  elements.themeToggle.addEventListener("change", () => {
+    document.body.classList.toggle("dark-theme", elements.themeToggle.checked);
+    localStorage.setItem(
+      "theme",
+      elements.themeToggle.checked ? "dark" : "light"
+    );
   });
 
   const savedTheme = localStorage.getItem("theme");
   if (savedTheme === "dark") {
     document.body.classList.add("dark-theme");
-    elements.themeToggle.innerHTML = '<i class="fas fa-sun"></i>';
+    elements.themeToggle.checked = true;
   }
 }
 
@@ -84,6 +97,7 @@ if (elements.logoutBtn) {
   elements.logoutBtn.addEventListener("click", () => {
     currentUser = null;
     localStorage.removeItem("token");
+    localStorage.removeItem("email");
     elements.loginBtn.classList.remove("hidden");
     elements.logoutBtn.classList.add("hidden");
     elements.userStatus.innerHTML = "";
@@ -170,7 +184,12 @@ if (elements.forgotPasswordForm) {
 // Fetch Profiles
 async function fetchProfiles() {
   try {
-    const res = await fetch(`${API_URL}/profiles`, { cache: "no-store" });
+    const token = localStorage.getItem("token");
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+    const res = await fetch(`${API_URL}/profiles`, {
+      headers,
+      cache: "no-store",
+    });
     if (!res.ok) throw new Error(`Failed to fetch profiles: ${res.status}`);
     profiles = await res.json();
     console.log("Fetched IT profiles:", profiles);
@@ -471,5 +490,50 @@ if (elements.collapseSidebar) {
   });
 }
 
-// Initial Load
-fetchProfiles();
+// Initial Load with Token Validation
+async function initialize() {
+  const token = localStorage.getItem("token");
+  if (token) {
+    const isValid = await validateToken(token);
+    if (isValid) {
+      try {
+        const res = await fetch(`${API_URL}/profiles`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) throw new Error("Failed to fetch profiles for user");
+        profiles = await res.json();
+        currentUser = {
+          id: profiles[0]?.user_id.toString(), // Assuming at least one profile exists
+          email: localStorage.getItem("email") || "Unknown",
+          role:
+            localStorage.getItem("email") === "admin@ssn.edu.in"
+              ? "manager"
+              : "staff",
+        };
+        elements.loginBtn.classList.add("hidden");
+        elements.logoutBtn.classList.remove("hidden");
+        elements.userStatus.innerHTML = `<i class="fas fa-user"></i> ${currentUser.email} <span class="role-tag">${currentUser.role}</span>`;
+        if (currentUser.role === "manager")
+          elements.adminDashboard.classList.remove("hidden");
+      } catch (err) {
+        console.error("Failed to initialize user:", err);
+        currentUser = null;
+        localStorage.removeItem("token");
+        localStorage.removeItem("email");
+        elements.loginBtn.classList.remove("hidden");
+        elements.logoutBtn.classList.add("hidden");
+        elements.userStatus.innerHTML = "";
+      }
+    } else {
+      currentUser = null;
+      localStorage.removeItem("token");
+      localStorage.removeItem("email");
+      elements.loginBtn.classList.remove("hidden");
+      elements.logoutBtn.classList.add("hidden");
+      elements.userStatus.innerHTML = "";
+    }
+  }
+  fetchProfiles();
+}
+
+initialize();
