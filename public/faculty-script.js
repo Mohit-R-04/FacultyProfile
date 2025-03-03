@@ -166,7 +166,7 @@ if (elements.loginForm) {
   });
 }
 
-// Load Faculty Profile
+// Load Faculty Profile with Hiding Logic
 async function loadFacultyProfile() {
   if (!facultyId || facultyId === "undefined") {
     showToast("No valid faculty ID provided in URL", "error");
@@ -190,101 +190,108 @@ async function loadFacultyProfile() {
     currentProfile = await res.json();
     console.log("Fetched faculty profile:", currentProfile);
 
+    // Populate and conditionally hide fields
     if (elements.facultyPic)
       elements.facultyPic.src = currentProfile.profile_pic
         ? `${API_URL}${currentProfile.profile_pic}?t=${Date.now()}`
         : "https://via.placeholder.com/150";
     if (elements.facultyName)
       elements.facultyName.textContent = currentProfile.name || "Unknown";
-    if (elements.facultyBio)
-      elements.facultyBio.textContent = currentProfile.bio || "Not provided";
-    if (elements.facultyResearch)
-      elements.facultyResearch.textContent =
-        currentProfile.research || "Not provided";
-    if (elements.facultyQual)
-      elements.facultyQual.textContent =
-        currentProfile.qualifications || "Not provided";
-    if (elements.facultyExp)
-      elements.facultyExp.textContent =
-        currentProfile.experience || "Not provided";
-    if (elements.facultyTenthCert)
-      elements.facultyTenthCert.href = currentProfile.tenth_cert
-        ? `${API_URL}${currentProfile.tenth_cert}`
-        : "#";
-    if (elements.facultyTwelfthCert)
-      elements.facultyTwelfthCert.href = currentProfile.twelfth_cert
-        ? `${API_URL}${currentProfile.twelfth_cert}`
-        : "#";
-    if (elements.facultyAppointmentOrder)
-      elements.facultyAppointmentOrder.href = currentProfile.appointment_order
-        ? `${API_URL}${currentProfile.appointment_order}`
-        : "#";
-    if (elements.facultyJoiningReport)
-      elements.facultyJoiningReport.href = currentProfile.joining_report
-        ? `${API_URL}${currentProfile.joining_report}`
-        : "#";
-    if (elements.facultyUgDegree)
-      elements.facultyUgDegree.href = currentProfile.ug_degree
-        ? `${API_URL}${currentProfile.ug_degree}`
-        : "#";
-    if (elements.facultyPgMsConsolidated)
-      elements.facultyPgMsConsolidated.href = currentProfile.pg_ms_consolidated
-        ? `${API_URL}${currentProfile.pg_ms_consolidated}`
-        : "#";
-    if (elements.facultyPhdDegree)
-      elements.facultyPhdDegree.href = currentProfile.phd_degree
-        ? `${API_URL}${currentProfile.phd_degree}`
-        : "#";
-    if (elements.facultyJournalsList)
-      elements.facultyJournalsList.href = currentProfile.journals_list
-        ? `${API_URL}${currentProfile.journals_list}`
-        : "#";
-    if (elements.facultyConferencesList)
-      elements.facultyConferencesList.href = currentProfile.conferences_list
-        ? `${API_URL}${currentProfile.conferences_list}`
-        : "#";
-    if (elements.facultyAuSupervisorLetter)
-      elements.facultyAuSupervisorLetter.href =
-        currentProfile.au_supervisor_letter
-          ? `${API_URL}${currentProfile.au_supervisor_letter}`
-          : "#";
-    if (elements.facultyFdpWorkshopsWebinars)
-      elements.facultyFdpWorkshopsWebinars.href =
-        currentProfile.fdp_workshops_webinars
-          ? `${API_URL}${currentProfile.fdp_workshops_webinars}`
-          : "#";
-    if (elements.facultyNptelCoursera)
-      elements.facultyNptelCoursera.href = currentProfile.nptel_coursera
-        ? `${API_URL}${currentProfile.nptel_coursera}`
-        : "#";
-    if (elements.facultyInvitedTalks)
-      elements.facultyInvitedTalks.href = currentProfile.invited_talks
-        ? `${API_URL}${currentProfile.invited_talks}`
-        : "#";
-    if (elements.facultyProjectsSanction)
-      elements.facultyProjectsSanction.href = currentProfile.projects_sanction
-        ? `${API_URL}${currentProfile.projects_sanction}`
-        : "#";
-    if (elements.facultyConsultancy)
-      elements.facultyConsultancy.href = currentProfile.consultancy
-        ? `${API_URL}${currentProfile.consultancy}`
-        : "#";
-    if (elements.facultyPatent)
-      elements.facultyPatent.href = currentProfile.patent
-        ? `${API_URL}${currentProfile.patent}`
-        : "#";
-    if (elements.facultyCommunityCert)
-      elements.facultyCommunityCert.href = currentProfile.community_cert
-        ? `${API_URL}${currentProfile.community_cert}`
-        : "#";
-    if (elements.facultyAadhar)
-      elements.facultyAadhar.href = currentProfile.aadhar
-        ? `${API_URL}${currentProfile.aadhar}`
-        : "#";
-    if (elements.facultyPan)
-      elements.facultyPan.href = currentProfile.pan
-        ? `${API_URL}${currentProfile.pan}`
-        : "#";
+
+    // Text fields
+    setTextField("faculty-bio", "bio-item", currentProfile.bio);
+    setTextField("faculty-research", "research-item", currentProfile.research);
+    setTextField(
+      "faculty-qual",
+      "qualifications-item",
+      currentProfile.qualifications
+    );
+    setTextField("faculty-exp", "experience-item", currentProfile.experience);
+
+    // Link fields
+    setLinkField(
+      "faculty-tenth-cert",
+      "tenth-cert-item",
+      currentProfile.tenth_cert
+    );
+    setLinkField(
+      "faculty-twelfth-cert",
+      "twelfth-cert-item",
+      currentProfile.twelfth_cert
+    );
+    setLinkField(
+      "faculty-appointment-order",
+      "appointment-order-item",
+      currentProfile.appointment_order
+    );
+    setLinkField(
+      "faculty-joining-report",
+      "joining-report-item",
+      currentProfile.joining_report
+    );
+    setLinkField(
+      "faculty-ug-degree",
+      "ug-degree-item",
+      currentProfile.ug_degree
+    );
+    setLinkField(
+      "faculty-pg-ms-consolidated",
+      "pg-ms-consolidated-item",
+      currentProfile.pg_ms_consolidated
+    );
+    setLinkField(
+      "faculty-phd-degree",
+      "phd-degree-item",
+      currentProfile.phd_degree
+    );
+    setLinkField(
+      "faculty-journals-list",
+      "journals-list-item",
+      currentProfile.journals_list
+    );
+    setLinkField(
+      "faculty-conferences-list",
+      "conferences-list-item",
+      currentProfile.conferences_list
+    );
+    setLinkField(
+      "faculty-au-supervisor-letter",
+      "au-supervisor-letter-item",
+      currentProfile.au_supervisor_letter
+    );
+    setLinkField(
+      "faculty-fdp-workshops-webinars",
+      "fdp-workshops-webinars-item",
+      currentProfile.fdp_workshops_webinars
+    );
+    setLinkField(
+      "faculty-nptel-coursera",
+      "nptel-coursera-item",
+      currentProfile.nptel_coursera
+    );
+    setLinkField(
+      "faculty-invited-talks",
+      "invited-talks-item",
+      currentProfile.invited_talks
+    );
+    setLinkField(
+      "faculty-projects-sanction",
+      "projects-sanction-item",
+      currentProfile.projects_sanction
+    );
+    setLinkField(
+      "faculty-consultancy",
+      "consultancy-item",
+      currentProfile.consultancy
+    );
+    setLinkField("faculty-patent", "patent-item", currentProfile.patent);
+    setLinkField(
+      "faculty-community-cert",
+      "community-cert-item",
+      currentProfile.community_cert
+    );
+    setLinkField("faculty-aadhar", "aadhar-item", currentProfile.aadhar);
+    setLinkField("faculty-pan", "pan-item", currentProfile.pan);
 
     if (
       currentUser &&
@@ -302,36 +309,68 @@ async function loadFacultyProfile() {
       elements.facultyPic.src = "https://via.placeholder.com/150";
     if (elements.facultyName)
       elements.facultyName.textContent = "Profile Not Found";
-    if (elements.facultyBio) elements.facultyBio.textContent = "N/A";
-    if (elements.facultyResearch) elements.facultyResearch.textContent = "N/A";
-    if (elements.facultyQual) elements.facultyQual.textContent = "N/A";
-    if (elements.facultyExp) elements.facultyExp.textContent = "N/A";
-    if (elements.facultyTenthCert) elements.facultyTenthCert.href = "#";
-    if (elements.facultyTwelfthCert) elements.facultyTwelfthCert.href = "#";
-    if (elements.facultyAppointmentOrder)
-      elements.facultyAppointmentOrder.href = "#";
-    if (elements.facultyJoiningReport) elements.facultyJoiningReport.href = "#";
-    if (elements.facultyUgDegree) elements.facultyUgDegree.href = "#";
-    if (elements.facultyPgMsConsolidated)
-      elements.facultyPgMsConsolidated.href = "#";
-    if (elements.facultyPhdDegree) elements.facultyPhdDegree.href = "#";
-    if (elements.facultyJournalsList) elements.facultyJournalsList.href = "#";
-    if (elements.facultyConferencesList)
-      elements.facultyConferencesList.href = "#";
-    if (elements.facultyAuSupervisorLetter)
-      elements.facultyAuSupervisorLetter.href = "#";
-    if (elements.facultyFdpWorkshopsWebinars)
-      elements.facultyFdpWorkshopsWebinars.href = "#";
-    if (elements.facultyNptelCoursera) elements.facultyNptelCoursera.href = "#";
-    if (elements.facultyInvitedTalks) elements.facultyInvitedTalks.href = "#";
-    if (elements.facultyProjectsSanction)
-      elements.facultyProjectsSanction.href = "#";
-    if (elements.facultyConsultancy) elements.facultyConsultancy.href = "#";
-    if (elements.facultyPatent) elements.facultyPatent.href = "#";
-    if (elements.facultyCommunityCert) elements.facultyCommunityCert.href = "#";
-    if (elements.facultyAadhar) elements.facultyAadhar.href = "#";
-    if (elements.facultyPan) elements.facultyPan.href = "#";
+    hideAllFieldsOnError();
   }
+}
+
+// Helper Functions for Hiding Fields
+function setTextField(elementId, itemId, value) {
+  const element = document.getElementById(elementId);
+  const item = document.getElementById(itemId);
+  if (element && item) {
+    if (value && value.trim() !== "") {
+      element.textContent = value;
+      item.classList.remove("hidden");
+    } else {
+      item.classList.add("hidden");
+    }
+  }
+}
+
+function setLinkField(elementId, itemId, value) {
+  const element = document.getElementById(elementId);
+  const item = document.getElementById(itemId);
+  if (element && item) {
+    if (value && value.trim() !== "") {
+      element.href = `${API_URL}${value}`;
+      element.textContent = "Download";
+      item.classList.remove("hidden");
+    } else {
+      item.classList.add("hidden");
+    }
+  }
+}
+
+function hideAllFieldsOnError() {
+  const fields = [
+    "bio-item",
+    "research-item",
+    "qualifications-item",
+    "experience-item",
+    "tenth-cert-item",
+    "twelfth-cert-item",
+    "appointment-order-item",
+    "joining-report-item",
+    "ug-degree-item",
+    "pg-ms-consolidated-item",
+    "phd-degree-item",
+    "journals-list-item",
+    "conferences-list-item",
+    "au-supervisor-letter-item",
+    "fdp-workshops-webinars-item",
+    "nptel-coursera-item",
+    "invited-talks-item",
+    "projects-sanction-item",
+    "consultancy-item",
+    "patent-item",
+    "community-cert-item",
+    "aadhar-item",
+    "pan-item",
+  ];
+  fields.forEach((id) => {
+    const item = document.getElementById(id);
+    if (item) item.classList.add("hidden");
+  });
 }
 
 // Edit Profile
@@ -442,46 +481,67 @@ if (elements.exportPdf) {
     doc.setFontSize(18);
     doc.text("SSN IT Faculty Profile", 105, 20, { align: "center" });
 
-    // Content
+    // Content (only include fields that exist)
     doc.setFontSize(12);
-    const content = [
-      `Name: ${currentProfile.name || "Unknown"}`,
-      `Department: ${currentProfile.department || "IT"}`,
-      `Bio: ${currentProfile.bio || "N/A"}`,
-      `Qualifications: ${currentProfile.qualifications || "N/A"}`,
-      `Experience: ${currentProfile.experience || "N/A"}`,
-      `Research Interests: ${currentProfile.research || "N/A"}`,
-      `10th Certificate: ${currentProfile.tenth_cert || "N/A"}`,
-      `12th Certificate: ${currentProfile.twelfth_cert || "N/A"}`,
-      `Appointment Order: ${currentProfile.appointment_order || "N/A"}`,
-      `Joining Report: ${currentProfile.joining_report || "N/A"}`,
-      `UG Degree Certificate: ${currentProfile.ug_degree || "N/A"}`,
-      `Consolidated PG MS: ${currentProfile.pg_ms_consolidated || "N/A"}`,
-      `PhD Degree Certificate: ${currentProfile.phd_degree || "N/A"}`,
-      `List of Journals: ${currentProfile.journals_list || "N/A"}`,
-      `List of Conferences: ${currentProfile.conferences_list || "N/A"}`,
-      `AU Supervisor Recognition Letter: ${
-        currentProfile.au_supervisor_letter || "N/A"
-      }`,
-      `FDP/Workshops/Webinars: ${
-        currentProfile.fdp_workshops_webinars || "N/A"
-      }`,
-      `NPTEL/Coursera Courses: ${currentProfile.nptel_coursera || "N/A"}`,
-      `Invited Talks: ${currentProfile.invited_talks || "N/A"}`,
-      `Projects Sanction Order: ${currentProfile.projects_sanction || "N/A"}`,
-      `Consultancy: ${currentProfile.consultancy || "N/A"}`,
-      `Patent: ${currentProfile.patent || "N/A"}`,
-      `Community Certificate: ${currentProfile.community_cert || "N/A"}`,
-      `Aadhar: ${currentProfile.aadhar || "N/A"}`,
-      `PAN: ${currentProfile.pan || "N/A"}`,
-    ];
+    const content = [];
+    if (currentProfile.name) content.push(`Name: ${currentProfile.name}`);
+    if (currentProfile.department)
+      content.push(`Department: ${currentProfile.department}`);
+    if (currentProfile.bio) content.push(`Bio: ${currentProfile.bio}`);
+    if (currentProfile.qualifications)
+      content.push(`Qualifications: ${currentProfile.qualifications}`);
+    if (currentProfile.experience)
+      content.push(`Experience: ${currentProfile.experience}`);
+    if (currentProfile.research)
+      content.push(`Research Interests: ${currentProfile.research}`);
+    if (currentProfile.tenth_cert)
+      content.push(`10th Certificate: ${currentProfile.tenth_cert}`);
+    if (currentProfile.twelfth_cert)
+      content.push(`12th Certificate: ${currentProfile.twelfth_cert}`);
+    if (currentProfile.appointment_order)
+      content.push(`Appointment Order: ${currentProfile.appointment_order}`);
+    if (currentProfile.joining_report)
+      content.push(`Joining Report: ${currentProfile.joining_report}`);
+    if (currentProfile.ug_degree)
+      content.push(`UG Degree Certificate: ${currentProfile.ug_degree}`);
+    if (currentProfile.pg_ms_consolidated)
+      content.push(`Consolidated PG MS: ${currentProfile.pg_ms_consolidated}`);
+    if (currentProfile.phd_degree)
+      content.push(`PhD Degree Certificate: ${currentProfile.phd_degree}`);
+    if (currentProfile.journals_list)
+      content.push(`List of Journals: ${currentProfile.journals_list}`);
+    if (currentProfile.conferences_list)
+      content.push(`List of Conferences: ${currentProfile.conferences_list}`);
+    if (currentProfile.au_supervisor_letter)
+      content.push(
+        `AU Supervisor Recognition Letter: ${currentProfile.au_supervisor_letter}`
+      );
+    if (currentProfile.fdp_workshops_webinars)
+      content.push(
+        `FDP/Workshops/Webinars: ${currentProfile.fdp_workshops_webinars}`
+      );
+    if (currentProfile.nptel_coursera)
+      content.push(`NPTEL/Coursera Courses: ${currentProfile.nptel_coursera}`);
+    if (currentProfile.invited_talks)
+      content.push(`Invited Talks: ${currentProfile.invited_talks}`);
+    if (currentProfile.projects_sanction)
+      content.push(
+        `Projects Sanction Order: ${currentProfile.projects_sanction}`
+      );
+    if (currentProfile.consultancy)
+      content.push(`Consultancy: ${currentProfile.consultancy}`);
+    if (currentProfile.patent) content.push(`Patent: ${currentProfile.patent}`);
+    if (currentProfile.community_cert)
+      content.push(`Community Certificate: ${currentProfile.community_cert}`);
+    if (currentProfile.aadhar) content.push(`Aadhar: ${currentProfile.aadhar}`);
+    if (currentProfile.pan) content.push(`PAN: ${currentProfile.pan}`);
 
     let y = 40;
     content.forEach((line) => {
-      const splitText = doc.splitTextToSize(line, 170); // Wrap text to fit 170mm width
+      const splitText = doc.splitTextToSize(line, 170);
       splitText.forEach((text) => {
         doc.text(text, 105, y, { align: "center" });
-        y += 10; // Proper spacing
+        y += 10;
       });
     });
 
