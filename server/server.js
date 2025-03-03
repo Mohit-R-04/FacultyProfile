@@ -54,18 +54,38 @@ db.serialize(async () => {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL UNIQUE,
       name TEXT NOT NULL,
+      department TEXT NOT NULL DEFAULT 'IT',
       bio TEXT,
       profile_pic TEXT,
       qualifications TEXT,
       experience TEXT,
       research TEXT,
+      tenth_cert TEXT,
+      twelfth_cert TEXT,
+      appointment_order TEXT,
+      joining_report TEXT,
+      ug_degree TEXT,
+      pg_ms_consolidated TEXT,
+      phd_degree TEXT,
+      journals_list TEXT,
+      conferences_list TEXT,
+      au_supervisor_letter TEXT,
+      fdp_workshops_webinars TEXT,
+      nptel_coursera TEXT,
+      invited_talks TEXT,
+      projects_sanction TEXT,
+      consultancy TEXT,
+      patent TEXT,
+      community_cert TEXT,
+      aadhar TEXT,
+      pan TEXT,
       FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
     )
   `);
 
-  console.log("Seeding initial users for SSN College of Engineering...");
+  console.log("Seeding initial data for SSN College of Engineering...");
   const hashAdmin = await bcrypt.hash("admin123", 10);
-  await db.run(
+  await runQuery(
     "INSERT INTO users (email, password, phone_number, role) VALUES (?, ?, ?, ?)",
     ["admin@ssn.edu.in", hashAdmin, "1234567890", "manager"],
     (err) => {
@@ -144,9 +164,7 @@ app.post("/login", async (req, res) => {
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role },
       JWT_SECRET,
-      {
-        expiresIn: "1h",
-      }
+      { expiresIn: "1h" }
     );
     console.log(`User logged in: ${email}`);
     res.json({
@@ -200,7 +218,28 @@ app.get("/profiles/:id", async (req, res) => {
 app.post(
   "/profiles",
   authenticateToken,
-  upload.single("profile_pic"),
+  upload.fields([
+    { name: "profile_pic", maxCount: 1 },
+    { name: "tenth_cert", maxCount: 1 },
+    { name: "twelfth_cert", maxCount: 1 },
+    { name: "appointment_order", maxCount: 1 },
+    { name: "joining_report", maxCount: 1 },
+    { name: "ug_degree", maxCount: 1 },
+    { name: "pg_ms_consolidated", maxCount: 1 },
+    { name: "phd_degree", maxCount: 1 },
+    { name: "journals_list", maxCount: 1 },
+    { name: "conferences_list", maxCount: 1 },
+    { name: "au_supervisor_letter", maxCount: 1 },
+    { name: "fdp_workshops_webinars", maxCount: 1 },
+    { name: "nptel_coursera", maxCount: 1 },
+    { name: "invited_talks", maxCount: 1 },
+    { name: "projects_sanction", maxCount: 1 },
+    { name: "consultancy", maxCount: 1 },
+    { name: "patent", maxCount: 1 },
+    { name: "community_cert", maxCount: 1 },
+    { name: "aadhar", maxCount: 1 },
+    { name: "pan", maxCount: 1 },
+  ]),
   async (req, res) => {
     if (req.user.role !== "manager") {
       console.log(`Unauthorized add attempt by ${req.user.email}`);
@@ -213,12 +252,68 @@ app.post(
       password,
       phone_number,
       name,
+      department,
       bio,
-      research,
       qualifications,
       experience,
+      research,
     } = req.body;
-    const profilePic = req.file ? `/uploads/${req.file.filename}` : null;
+
+    const files = req.files || {};
+    const profilePic = files.profile_pic
+      ? `/uploads/${files.profile_pic[0].filename}`
+      : null;
+    const tenthCert = files.tenth_cert
+      ? `/uploads/${files.tenth_cert[0].filename}`
+      : null;
+    const twelfthCert = files.twelfth_cert
+      ? `/uploads/${files.twelfth_cert[0].filename}`
+      : null;
+    const appointmentOrder = files.appointment_order
+      ? `/uploads/${files.appointment_order[0].filename}`
+      : null;
+    const joiningReport = files.joining_report
+      ? `/uploads/${files.joining_report[0].filename}`
+      : null;
+    const ugDegree = files.ug_degree
+      ? `/uploads/${files.ug_degree[0].filename}`
+      : null;
+    const pgMsConsolidated = files.pg_ms_consolidated
+      ? `/uploads/${files.pg_ms_consolidated[0].filename}`
+      : null;
+    const phdDegree = files.phd_degree
+      ? `/uploads/${files.phd_degree[0].filename}`
+      : null;
+    const journalsList = files.journals_list
+      ? `/uploads/${files.journals_list[0].filename}`
+      : null;
+    const conferencesList = files.conferences_list
+      ? `/uploads/${files.conferences_list[0].filename}`
+      : null;
+    const auSupervisorLetter = files.au_supervisor_letter
+      ? `/uploads/${files.au_supervisor_letter[0].filename}`
+      : null;
+    const fdpWorkshopsWebinars = files.fdp_workshops_webinars
+      ? `/uploads/${files.fdp_workshops_webinars[0].filename}`
+      : null;
+    const nptelCoursera = files.nptel_coursera
+      ? `/uploads/${files.nptel_coursera[0].filename}`
+      : null;
+    const invitedTalks = files.invited_talks
+      ? `/uploads/${files.invited_talks[0].filename}`
+      : null;
+    const projectsSanction = files.projects_sanction
+      ? `/uploads/${files.projects_sanction[0].filename}`
+      : null;
+    const consultancy = files.consultancy
+      ? `/uploads/${files.consultancy[0].filename}`
+      : null;
+    const patent = files.patent ? `/uploads/${files.patent[0].filename}` : null;
+    const communityCert = files.community_cert
+      ? `/uploads/${files.community_cert[0].filename}`
+      : null;
+    const aadhar = files.aadhar ? `/uploads/${files.aadhar[0].filename}` : null;
+    const pan = files.pan ? `/uploads/${files.pan[0].filename}` : null;
 
     console.log("Adding faculty:", { email, phone_number, name, profilePic });
 
@@ -244,15 +339,35 @@ app.post(
       const userId = userResult.lastID;
 
       const profileResult = await runQuery(
-        "INSERT INTO profiles (user_id, name, bio, profile_pic, research, qualifications, experience) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO profiles (user_id, name, department, bio, profile_pic, qualifications, experience, research, tenth_cert, twelfth_cert, appointment_order, joining_report, ug_degree, pg_ms_consolidated, phd_degree, journals_list, conferences_list, au_supervisor_letter, fdp_workshops_webinars, nptel_coursera, invited_talks, projects_sanction, consultancy, patent, community_cert, aadhar, pan) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         [
           userId,
           name,
+          department || "IT",
           bio || "",
           profilePic || null,
-          research || "",
           qualifications || "",
           experience || "",
+          research || "",
+          tenthCert || null,
+          twelfthCert || null,
+          appointmentOrder || null,
+          joiningReport || null,
+          ugDegree || null,
+          pgMsConsolidated || null,
+          phdDegree || null,
+          journalsList || null,
+          conferencesList || null,
+          auSupervisorLetter || null,
+          fdpWorkshopsWebinars || null,
+          nptelCoursera || null,
+          invitedTalks || null,
+          projectsSanction || null,
+          consultancy || null,
+          patent || null,
+          communityCert || null,
+          aadhar || null,
+          pan || null,
         ]
       );
       const newProfile = await getQuery("SELECT * FROM profiles WHERE id = ?", [
@@ -279,21 +394,90 @@ app.post(
 app.put(
   "/profiles/:id",
   authenticateToken,
-  upload.single("profile_pic"),
+  upload.fields([
+    { name: "profile_pic", maxCount: 1 },
+    { name: "tenth_cert", maxCount: 1 },
+    { name: "twelfth_cert", maxCount: 1 },
+    { name: "appointment_order", maxCount: 1 },
+    { name: "joining_report", maxCount: 1 },
+    { name: "ug_degree", maxCount: 1 },
+    { name: "pg_ms_consolidated", maxCount: 1 },
+    { name: "phd_degree", maxCount: 1 },
+    { name: "journals_list", maxCount: 1 },
+    { name: "conferences_list", maxCount: 1 },
+    { name: "au_supervisor_letter", maxCount: 1 },
+    { name: "fdp_workshops_webinars", maxCount: 1 },
+    { name: "nptel_coursera", maxCount: 1 },
+    { name: "invited_talks", maxCount: 1 },
+    { name: "projects_sanction", maxCount: 1 },
+    { name: "consultancy", maxCount: 1 },
+    { name: "patent", maxCount: 1 },
+    { name: "community_cert", maxCount: 1 },
+    { name: "aadhar", maxCount: 1 },
+    { name: "pan", maxCount: 1 },
+  ]),
   async (req, res) => {
     const { id } = req.params;
-    const { name, bio, research, qualifications, experience } = req.body;
-    const profilePic = req.file ? `/uploads/${req.file.filename}` : null;
+    const { name, department, bio, qualifications, experience, research } =
+      req.body;
 
-    console.log("Update request:", {
-      id,
-      name,
-      bio,
-      profilePic,
-      research,
-      qualifications,
-      experience,
-    });
+    const files = req.files || {};
+    const profilePic = files.profile_pic
+      ? `/uploads/${files.profile_pic[0].filename}`
+      : null;
+    const tenthCert = files.tenth_cert
+      ? `/uploads/${files.tenth_cert[0].filename}`
+      : null;
+    const twelfthCert = files.twelfth_cert
+      ? `/uploads/${files.twelfth_cert[0].filename}`
+      : null;
+    const appointmentOrder = files.appointment_order
+      ? `/uploads/${files.appointment_order[0].filename}`
+      : null;
+    const joiningReport = files.joining_report
+      ? `/uploads/${files.joining_report[0].filename}`
+      : null;
+    const ugDegree = files.ug_degree
+      ? `/uploads/${files.ug_degree[0].filename}`
+      : null;
+    const pgMsConsolidated = files.pg_ms_consolidated
+      ? `/uploads/${files.pg_ms_consolidated[0].filename}`
+      : null;
+    const phdDegree = files.phd_degree
+      ? `/uploads/${files.phd_degree[0].filename}`
+      : null;
+    const journalsList = files.journals_list
+      ? `/uploads/${files.journals_list[0].filename}`
+      : null;
+    const conferencesList = files.conferences_list
+      ? `/uploads/${files.conferences_list[0].filename}`
+      : null;
+    const auSupervisorLetter = files.au_supervisor_letter
+      ? `/uploads/${files.au_supervisor_letter[0].filename}`
+      : null;
+    const fdpWorkshopsWebinars = files.fdp_workshops_webinars
+      ? `/uploads/${files.fdp_workshops_webinars[0].filename}`
+      : null;
+    const nptelCoursera = files.nptel_coursera
+      ? `/uploads/${files.nptel_coursera[0].filename}`
+      : null;
+    const invitedTalks = files.invited_talks
+      ? `/uploads/${files.invited_talks[0].filename}`
+      : null;
+    const projectsSanction = files.projects_sanction
+      ? `/uploads/${files.projects_sanction[0].filename}`
+      : null;
+    const consultancy = files.consultancy
+      ? `/uploads/${files.consultancy[0].filename}`
+      : null;
+    const patent = files.patent ? `/uploads/${files.patent[0].filename}` : null;
+    const communityCert = files.community_cert
+      ? `/uploads/${files.community_cert[0].filename}`
+      : null;
+    const aadhar = files.aadhar ? `/uploads/${files.aadhar[0].filename}` : null;
+    const pan = files.pan ? `/uploads/${files.pan[0].filename}` : null;
+
+    console.log("Update request:", { id, name, department, bio, profilePic });
 
     if (!name) {
       console.log("Missing required field: name");
@@ -304,7 +488,7 @@ app.put(
 
     try {
       const profile = await getQuery(
-        "SELECT user_id, profile_pic FROM profiles WHERE id = ?",
+        "SELECT user_id, profile_pic, tenth_cert, twelfth_cert, appointment_order, joining_report, ug_degree, pg_ms_consolidated, phd_degree, journals_list, conferences_list, au_supervisor_letter, fdp_workshops_webinars, nptel_coursera, invited_talks, projects_sanction, consultancy, patent, community_cert, aadhar, pan FROM profiles WHERE id = ?",
         [id]
       );
       if (!profile) {
@@ -327,38 +511,107 @@ app.put(
         });
       }
 
-      if (
-        profilePic &&
-        profile.profile_pic &&
-        fs.existsSync(path.join(__dirname, profile.profile_pic))
-      ) {
-        fs.unlinkSync(path.join(__dirname, profile.profile_pic));
-        console.log(
-          `Deleted old faculty profile picture: ${profile.profile_pic}`
-        );
-      }
+      // Delete old files if new ones are uploaded
+      const oldFiles = [
+        profile.profile_pic,
+        profile.tenth_cert,
+        profile.twelfth_cert,
+        profile.appointment_order,
+        profile.joining_report,
+        profile.ug_degree,
+        profile.pg_ms_consolidated,
+        profile.phd_degree,
+        profile.journals_list,
+        profile.conferences_list,
+        profile.au_supervisor_letter,
+        profile.fdp_workshops_webinars,
+        profile.nptel_coursera,
+        profile.invited_talks,
+        profile.projects_sanction,
+        profile.consultancy,
+        profile.patent,
+        profile.community_cert,
+        profile.aadhar,
+        profile.pan,
+      ];
+      const newFiles = [
+        profilePic,
+        tenthCert,
+        twelfthCert,
+        appointmentOrder,
+        joiningReport,
+        ugDegree,
+        pgMsConsolidated,
+        phdDegree,
+        journalsList,
+        conferencesList,
+        auSupervisorLetter,
+        fdpWorkshopsWebinars,
+        nptelCoursera,
+        invitedTalks,
+        projectsSanction,
+        consultancy,
+        patent,
+        communityCert,
+        aadhar,
+        pan,
+      ];
+      oldFiles.forEach((oldFile, index) => {
+        if (
+          newFiles[index] &&
+          oldFile &&
+          fs.existsSync(path.join(__dirname, oldFile))
+        ) {
+          fs.unlinkSync(path.join(__dirname, oldFile));
+          console.log(`Deleted old file: ${oldFile}`);
+        }
+      });
 
-      const updateQuery = profilePic
-        ? "UPDATE profiles SET name = ?, bio = ?, profile_pic = ?, research = ?, qualifications = ?, experience = ? WHERE id = ?"
-        : "UPDATE profiles SET name = ?, bio = ?, research = ?, qualifications = ?, experience = ? WHERE id = ?";
-      const params = profilePic
-        ? [
-            name,
-            bio || "",
-            profilePic,
-            research || "",
-            qualifications || "",
-            experience || "",
-            id,
-          ]
-        : [
-            name,
-            bio || "",
-            research || "",
-            qualifications || "",
-            experience || "",
-            id,
-          ];
+      const updateQuery = `
+        UPDATE profiles SET 
+          name = ?, department = ?, bio = ?, profile_pic = COALESCE(?, profile_pic), 
+          qualifications = ?, experience = ?, research = ?,
+          tenth_cert = COALESCE(?, tenth_cert), twelfth_cert = COALESCE(?, twelfth_cert),
+          appointment_order = COALESCE(?, appointment_order), joining_report = COALESCE(?, joining_report),
+          ug_degree = COALESCE(?, ug_degree), pg_ms_consolidated = COALESCE(?, pg_ms_consolidated),
+          phd_degree = COALESCE(?, phd_degree), journals_list = COALESCE(?, journals_list),
+          conferences_list = COALESCE(?, conferences_list), au_supervisor_letter = COALESCE(?, au_supervisor_letter),
+          fdp_workshops_webinars = COALESCE(?, fdp_workshops_webinars), nptel_coursera = COALESCE(?, nptel_coursera),
+          invited_talks = COALESCE(?, invited_talks), projects_sanction = COALESCE(?, projects_sanction),
+          consultancy = COALESCE(?, consultancy), patent = COALESCE(?, patent),
+          community_cert = COALESCE(?, community_cert), aadhar = COALESCE(?, aadhar),
+          pan = COALESCE(?, pan)
+        WHERE id = ?
+      `;
+      const params = [
+        name,
+        department || "IT",
+        bio || "",
+        profilePic,
+        qualifications || "",
+        experience || "",
+        research || "",
+        tenthCert,
+        twelfthCert,
+        appointmentOrder,
+        joiningReport,
+        ugDegree,
+        pgMsConsolidated,
+        phdDegree,
+        journalsList,
+        conferencesList,
+        auSupervisorLetter,
+        fdpWorkshopsWebinars,
+        nptelCoursera,
+        invitedTalks,
+        projectsSanction,
+        consultancy,
+        patent,
+        communityCert,
+        aadhar,
+        pan,
+        id,
+      ];
 
       await runQuery(updateQuery, params);
       const updatedProfile = await getQuery(
@@ -392,7 +645,7 @@ app.delete("/profiles/:id", authenticateToken, async (req, res) => {
 
   try {
     const profile = await getQuery(
-      "SELECT profile_pic FROM profiles WHERE id = ?",
+      "SELECT profile_pic, tenth_cert, twelfth_cert, appointment_order, joining_report, ug_degree, pg_ms_consolidated, phd_degree, journals_list, conferences_list, au_supervisor_letter, fdp_workshops_webinars, nptel_coursera, invited_talks, projects_sanction, consultancy, patent, community_cert, aadhar, pan FROM profiles WHERE id = ?",
       [id]
     );
     if (!profile) {
@@ -402,13 +655,34 @@ app.delete("/profiles/:id", authenticateToken, async (req, res) => {
         .json({ success: false, message: "Profile not found" });
     }
 
-    if (
-      profile.profile_pic &&
-      fs.existsSync(path.join(__dirname, profile.profile_pic))
-    ) {
-      fs.unlinkSync(path.join(__dirname, profile.profile_pic));
-      console.log(`Deleted faculty profile picture: ${profile.profile_pic}`);
-    }
+    const filesToDelete = [
+      profile.profile_pic,
+      profile.tenth_cert,
+      profile.twelfth_cert,
+      profile.appointment_order,
+      profile.joining_report,
+      profile.ug_degree,
+      profile.pg_ms_consolidated,
+      profile.phd_degree,
+      profile.journals_list,
+      profile.conferences_list,
+      profile.au_supervisor_letter,
+      profile.fdp_workshops_webinars,
+      profile.nptel_coursera,
+      profile.invited_talks,
+      profile.projects_sanction,
+      profile.consultancy,
+      profile.patent,
+      profile.community_cert,
+      profile.aadhar,
+      profile.pan,
+    ];
+    filesToDelete.forEach((file) => {
+      if (file && fs.existsSync(path.join(__dirname, file))) {
+        fs.unlinkSync(path.join(__dirname, file));
+        console.log(`Deleted file: ${file}`);
+      }
+    });
 
     await runQuery("DELETE FROM profiles WHERE id = ?", [id]);
     await runQuery(

@@ -68,6 +68,36 @@ async function validateToken(token) {
   }
 }
 
+// Check and Refresh Token
+async function checkToken() {
+  const token = localStorage.getItem("token");
+  if (!token) {
+    logout();
+    return false;
+  }
+  const isValid = await validateToken(token);
+  if (!isValid) {
+    showToast("Session expired. Please log in again.", "error");
+    logout();
+    return false;
+  }
+  return true;
+}
+
+// Logout Function
+function logout() {
+  currentUser = null;
+  localStorage.removeItem("token");
+  localStorage.removeItem("email");
+  elements.loginBtn.classList.remove("hidden");
+  elements.logoutBtn.classList.add("hidden");
+  elements.userStatus.innerHTML = "";
+  elements.adminDashboard.classList.add("hidden");
+  elements.profileGrid.classList.remove("hidden");
+  elements.loginModal.classList.remove("hidden");
+  loadProfiles();
+}
+
 // Theme Management
 if (elements.themeToggle) {
   elements.themeToggle.addEventListener("change", () => {
@@ -86,25 +116,21 @@ if (elements.themeToggle) {
 }
 
 // Authentication
-if (elements.loginBtn)
+if (elements.loginBtn) {
   elements.loginBtn.addEventListener("click", () =>
     elements.loginModal.classList.remove("hidden")
   );
-if (elements.closeLogin)
+}
+
+if (elements.closeLogin) {
   elements.closeLogin.addEventListener("click", () =>
     elements.loginModal.classList.add("hidden")
   );
+}
 
 if (elements.logoutBtn) {
   elements.logoutBtn.addEventListener("click", () => {
-    currentUser = null;
-    localStorage.removeItem("token");
-    localStorage.removeItem("email");
-    elements.loginBtn.classList.remove("hidden");
-    elements.logoutBtn.classList.add("hidden");
-    elements.userStatus.innerHTML = "";
-    elements.adminDashboard.classList.add("hidden");
-    fetchProfiles();
+    logout();
     showToast("Logged out successfully");
   });
 }
@@ -129,9 +155,13 @@ if (elements.loginForm) {
         elements.loginBtn.classList.add("hidden");
         elements.logoutBtn.classList.remove("hidden");
         elements.userStatus.innerHTML = `<i class="fas fa-user"></i> ${currentUser.email} <span class="role-tag">${currentUser.role}</span>`;
-        if (currentUser.role === "manager")
+        if (currentUser.role === "manager") {
           elements.adminDashboard.classList.remove("hidden");
-        fetchProfiles();
+          elements.profileGrid.classList.add("hidden");
+          loadAdminProfiles();
+        } else {
+          loadProfiles();
+        }
         showToast(`Welcome, ${currentUser.email}!`);
       } else {
         showToast("Login failed: " + data.message, "error");
@@ -152,9 +182,9 @@ if (elements.forgotPasswordBtn) {
 }
 
 if (elements.closeForgotPassword) {
-  elements.closeForgotPassword.addEventListener("click", () => {
-    elements.forgotPasswordModal.classList.add("hidden");
-  });
+  elements.closeForgotPassword.addEventListener("click", () =>
+    elements.forgotPasswordModal.classList.add("hidden")
+  );
 }
 
 if (elements.forgotPasswordForm) {
@@ -171,8 +201,7 @@ if (elements.forgotPasswordForm) {
       const data = await res.json();
       if (data.success) {
         elements.forgotPasswordModal.classList.add("hidden");
-        showToast("Password reset successfully, please login");
-        elements.loginModal.classList.remove("hidden");
+        showToast("Password reset successfully");
       } else {
         showToast("Reset failed: " + data.message, "error");
       }
@@ -183,281 +212,299 @@ if (elements.forgotPasswordForm) {
   });
 }
 
-// Fetch Profiles
-async function fetchProfiles() {
+// Load Profiles
+async function loadProfiles() {
   try {
-    const token = localStorage.getItem("token");
-    const headers = token ? { Authorization: `Bearer ${token}` } : {};
-    const res = await fetch(`${API_URL}/profiles`, {
-      headers,
-      cache: "no-store",
-    });
-    if (!res.ok) throw new Error(`Failed to fetch profiles: ${res.status}`);
+    const res = await fetch(`${API_URL}/profiles`, { cache: "no-store" });
+    if (!res.ok) throw new Error("Failed to fetch profiles");
     profiles = await res.json();
-    console.log("Fetched IT profiles:", profiles);
+    console.log("Fetched profiles:", profiles);
     renderProfiles(profiles);
-    if (currentUser?.role === "manager") renderAdminDashboard();
   } catch (err) {
-    showToast("Failed to load IT faculty profiles: " + err.message, "error");
+    showToast("Failed to load profiles: " + err.message, "error");
     console.error(err);
   }
 }
 
-// Render Profiles
-function renderProfiles(data) {
-  if (!elements.profileGrid) {
-    console.error("Profile grid element not found");
-    return;
-  }
+function renderProfiles(profileList) {
   elements.profileGrid.innerHTML = "";
-  if (!data || !data.length) {
-    elements.profileGrid.innerHTML =
-      '<div class="grid-placeholder">No IT faculty profiles found</div>';
-    return;
-  }
-  data.forEach((profile) => {
+  profileList.forEach((profile) => {
     const card = document.createElement("div");
-    card.className = "profile-card";
+    card.className = "profile-card glassy";
     card.innerHTML = `
-      <div class="card-header">
-        <img src="${
-          profile.profile_pic
-            ? `${API_URL}${profile.profile_pic}?t=${Date.now()}`
-            : "https://via.placeholder.com/100"
-        }" alt="${profile.name}" class="card-avatar">
-        <h3>${profile.name}</h3>
-      </div>
-      <div class="card-body">
-        <p><i class="fas fa-info-circle"></i> ${
-          profile.bio?.substring(0, 50) || "No bio"
-        }...</p>
-      </div>
-      <div class="card-actions">
-        <button onclick="window.location.href='/faculty-profile.html?id=${
-          profile.id
-        }'" class="btn btn-primary btn-small">
-          <i class="fas fa-eye"></i> View
-        </button>
-        ${
-          currentUser &&
-          (currentUser.id === profile.user_id.toString() ||
-            currentUser.role === "manager")
-            ? `
-          <button onclick="editProfile('${
-            profile.id
-          }')" class="btn btn-secondary btn-small">
-            <i class="fas fa-edit"></i> Edit
-          </button>
-          ${
-            currentUser.role === "manager"
-              ? `
-            <button onclick="deleteProfile('${profile.id}')" class="btn btn-danger btn-small">
-              <i class="fas fa-trash"></i> Delete
-            </button>
-          `
-              : ""
-          }`
-            : ""
-        }
-      </div>
-    `;
+    <img src="${
+      profile.profile_pic
+        ? `${API_URL}${profile.profile_pic}?t=${Date.now()}`
+        : "https://via.placeholder.com/150"
+    }" alt="${profile.name}" class="profile-avatar">
+    <h3>${profile.name || "Unknown"}</h3>
+    <p>${
+      profile.bio ? profile.bio.substring(0, 100) + "..." : "No bio available"
+    }</p>
+    <button class="btn btn-primary" onclick="window.location.href='faculty-profile.html?id=${
+      profile.id
+    }'">
+      View Profile
+    </button>
+  `;
     elements.profileGrid.appendChild(card);
   });
-  updateStats(data);
 }
 
-// Render Admin Dashboard
-function renderAdminDashboard() {
-  if (!elements.adminProfiles) {
-    console.error("Admin profiles element not found");
-    return;
+// Load Admin Profiles
+async function loadAdminProfiles() {
+  if (!(await checkToken())) return;
+  try {
+    const res = await fetch(`${API_URL}/profiles`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      cache: "no-store",
+    });
+    if (!res.ok) throw new Error("Failed to fetch profiles");
+    profiles = await res.json();
+    console.log("Fetched admin profiles:", profiles);
+    elements.totalStaff.textContent = profiles.length;
+    renderAdminProfiles(profiles);
+  } catch (err) {
+    showToast("Failed to load admin profiles: " + err.message, "error");
+    console.error(err);
   }
+}
+
+function renderAdminProfiles(profileList) {
   elements.adminProfiles.innerHTML = "";
-  profiles.forEach((profile) => {
+  profileList.forEach((profile) => {
     const card = document.createElement("div");
-    card.className = "profile-card";
+    card.className = "profile-card glassy";
     card.innerHTML = `
-      <h3>${profile.name}</h3>
-      <div class="card-actions">
-        <button onclick="editProfile('${profile.id}')" class="btn btn-secondary btn-small">
-          <i class="fas fa-edit"></i> Edit
-        </button>
-        <button onclick="deleteProfile('${profile.id}')" class="btn btn-danger btn-small">
-          <i class="fas fa-trash"></i> Delete
-        </button>
-      </div>
-    `;
+    <img src="${
+      profile.profile_pic
+        ? `${API_URL}${profile.profile_pic}?t=${Date.now()}`
+        : "https://via.placeholder.com/150"
+    }" alt="${profile.name}" class="profile-avatar">
+    <h3>${profile.name || "Unknown"}</h3>
+    <p>${
+      profile.bio ? profile.bio.substring(0, 100) + "..." : "No bio available"
+    }</p>
+    <div class="profile-actions">
+      <button class="btn btn-primary" onclick="viewProfile(${profile.id})">
+        View
+      </button>
+      <button class="btn btn-secondary" onclick="editProfile(${profile.id})">
+        Edit
+      </button>
+      <button class="btn btn-danger" onclick="deleteProfile(${profile.id})">
+        Delete
+      </button>
+    </div>
+  `;
     elements.adminProfiles.appendChild(card);
   });
 }
 
-// Update Stats
-function updateStats(data) {
-  if (elements.totalStaff) elements.totalStaff.textContent = data.length || 0;
+// View Profile
+function viewProfile(id) {
+  window.location.href = `faculty-profile.html?id=${id}`;
 }
 
 // Edit Profile
-function editProfile(id) {
-  console.log("Editing profile with ID:", id);
-  if (!id) {
-    showToast("Invalid profile ID", "error");
-    return;
-  }
-  const profile = profiles.find((p) => p.id === id); // Changed from _id to id
-  if (!currentUser) {
-    showToast("Please login to edit profiles", "error");
-    return;
-  }
-  if (
-    currentUser.id !== profile.user_id.toString() &&
-    currentUser.role !== "manager"
-  ) {
-    showToast("Unauthorized: You can only edit your own profile", "error");
-    return;
-  }
-  elements.editTitle.innerHTML = `<i class="fas fa-user-edit"></i> Edit IT Faculty Profile`;
-  elements.profileForm.id.value = profile.id; // Changed from _id to id
-  elements.profileForm.name.value = profile.name;
+async function editProfile(id) {
+  if (!(await checkToken())) return;
+  const profile = profiles.find((p) => p.id === id);
+  if (!profile) return showToast("Profile not found", "error");
+  elements.editModal.classList.remove("hidden");
+  elements.editTitle.innerHTML = `<i class="fas fa-user-edit"></i> Edit Faculty Profile`;
+  elements.profileForm.id.value = id;
+  elements.profileForm.email.value = ""; // Email not editable
+  elements.profileForm.password.value = ""; // Password not editable
+  elements.profileForm.phone_number.value = ""; // Phone not editable
+  elements.profileForm.name.value = profile.name || "";
+  elements.profileForm.department.value = profile.department || "IT";
   elements.profileForm.bio.value = profile.bio || "";
-  elements.profileForm.research.value = profile.research || "";
   elements.profileForm.qualifications.value = profile.qualifications || "";
   elements.profileForm.experience.value = profile.experience || "";
+  elements.profileForm.research.value = profile.research || "";
   elements.profileForm.profile_pic.value = "";
-  elements.profileForm.querySelector("#email-group").style.display = "none";
-  elements.profileForm.querySelector("#password-group").style.display = "none";
-  elements.profileForm.querySelector("#phone-group").style.display = "none";
-  elements.editModal.classList.remove("hidden");
-
-  elements.profileForm.onsubmit = async (e) => {
-    e.preventDefault();
-    const formData = new FormData(elements.profileForm);
-    console.log("Sending update request:", Array.from(formData.entries()));
-    try {
-      const res = await fetch(`${API_URL}/profiles/${id}`, {
-        method: "PUT",
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-        body: formData,
-      });
-      const data = await res.json();
-      console.log("Update response:", data);
-      if (data.success) {
-        elements.editModal.classList.add("hidden");
-        const index = profiles.findIndex((p) => p.id === id); // Changed from _id to id
-        profiles[index] = data.profile;
-        renderProfiles(profiles);
-        if (currentUser.role === "manager") renderAdminDashboard();
-        showToast(`IT faculty profile updated: ${formData.get("name")}`);
-      } else {
-        showToast(`Failed to update IT faculty: ${data.message}`, "error");
-      }
-    } catch (err) {
-      showToast("Server error during update: " + err.message, "error");
-      console.error(err);
-    }
-  };
-}
-
-if (elements.closeEdit) {
-  elements.closeEdit.addEventListener("click", () =>
-    elements.editModal.classList.add("hidden")
-  );
-}
-
-// Add Staff (Admin Only)
-if (elements.addStaffBtn) {
-  elements.addStaffBtn.addEventListener("click", () => {
-    if (!currentUser || currentUser.role !== "manager") {
-      showToast("Unauthorized: Only managers can add IT faculty", "error");
-      return;
-    }
-    elements.editTitle.innerHTML = `<i class="fas fa-user-plus"></i> Add IT Faculty`;
-    elements.profileForm.reset();
-    elements.profileForm.id.value = "";
-    elements.profileForm.querySelector("#email-group").style.display = "block";
-    elements.profileForm.querySelector("#password-group").style.display =
-      "block";
-    elements.profileForm.querySelector("#phone-group").style.display = "block";
-    elements.profileForm
-      .querySelector("#edit-email")
-      .setAttribute("required", "true");
-    elements.profileForm
-      .querySelector("#edit-password")
-      .setAttribute("required", "true");
-    elements.profileForm
-      .querySelector("#edit-phone")
-      .setAttribute("required", "true");
-    elements.editModal.classList.remove("hidden");
-
-    elements.profileForm.onsubmit = async (e) => {
-      e.preventDefault();
-      const formData = new FormData(elements.profileForm);
-      console.log("Sending add request:", Array.from(formData.entries()));
-      try {
-        const res = await fetch(`${API_URL}/profiles`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-          body: formData,
-        });
-        const data = await res.json();
-        console.log("Add response:", data);
-        if (data.success) {
-          elements.editModal.classList.add("hidden");
-          profiles.push(data.profile);
-          renderProfiles(profiles);
-          if (currentUser.role === "manager") renderAdminDashboard();
-          showToast(`IT faculty added: ${formData.get("name")}`);
-          // Redirect to the new faculty profile
-          window.location.href = `/faculty-profile.html?id=${data.profile.id}`;
-        } else {
-          showToast(`Failed to add IT faculty: ${data.message}`, "error");
-        }
-      } catch (err) {
-        showToast("Server error during creation: " + err.message, "error");
-        console.error(err);
-      }
-    };
-  });
+  elements.profileForm.tenth_cert.value = "";
+  elements.profileForm.twelfth_cert.value = "";
+  elements.profileForm.appointment_order.value = "";
+  elements.profileForm.joining_report.value = "";
+  elements.profileForm.ug_degree.value = "";
+  elements.profileForm.pg_ms_consolidated.value = "";
+  elements.profileForm.phd_degree.value = "";
+  elements.profileForm.journals_list.value = "";
+  elements.profileForm.conferences_list.value = "";
+  elements.profileForm.au_supervisor_letter.value = "";
+  elements.profileForm.fdp_workshops_webinars.value = "";
+  elements.profileForm.nptel_coursera.value = "";
+  elements.profileForm.invited_talks.value = "";
+  elements.profileForm.projects_sanction.value = "";
+  elements.profileForm.consultancy.value = "";
+  elements.profileForm.patent.value = "";
+  elements.profileForm.community_cert.value = "";
+  elements.profileForm.aadhar.value = "";
+  elements.profileForm.pan.value = "";
+  elements.profileForm.querySelector("#email-group").classList.add("hidden");
+  elements.profileForm.querySelector("#password-group").classList.add("hidden");
+  elements.profileForm.querySelector("#phone-group").classList.add("hidden");
 }
 
 // Delete Profile
 async function deleteProfile(id) {
-  console.log("Deleting profile with ID:", id);
-  if (!id) {
-    showToast("Invalid profile ID", "error");
-    return;
-  }
-  if (!currentUser || currentUser.role !== "manager") {
-    showToast("Unauthorized: Only managers can delete IT faculty", "error");
-    return;
-  }
-  if (confirm("Are you sure you want to delete this IT faculty profile?")) {
-    try {
-      const res = await fetch(`${API_URL}/profiles/${id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-      });
-      const data = await res.json();
-      console.log("Delete response:", data);
-      if (data.success) {
-        profiles = profiles.filter((p) => p.id !== id); // Changed from _id to id
-        renderProfiles(profiles);
-        if (currentUser.role === "manager") renderAdminDashboard();
-        showToast(`IT faculty profile deleted (ID: ${id})`);
-      } else {
-        showToast(`Failed to delete IT faculty: ${data.message}`, "error");
-      }
-    } catch (err) {
-      showToast("Server error during deletion: " + err.message, "error");
-      console.error("Delete error:", err);
+  if (!(await checkToken())) return;
+  if (!confirm("Are you sure you want to delete this profile?")) return;
+  try {
+    const res = await fetch(`${API_URL}/profiles/${id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast("Profile deleted successfully");
+      loadAdminProfiles();
+    } else {
+      showToast("Failed to delete profile: " + data.message, "error");
     }
+  } catch (err) {
+    showToast("Server error during delete: " + err.message, "error");
+    console.error(err);
   }
 }
 
-// Search and Filter (Only by Role and Name)
-if (elements.searchBar)
+// Add/Edit Profile Form Submission
+if (elements.profileForm) {
+  elements.profileForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!(await checkToken())) return;
+    const formData = new FormData(elements.profileForm);
+    const id = formData.get("id");
+    const method = id ? "PUT" : "POST";
+    const url = id ? `${API_URL}/profiles/${id}` : `${API_URL}/profiles`;
+
+    if (
+      id &&
+      currentUser.role !== "manager" &&
+      currentUser.id !==
+        profiles.find((p) => p.id === parseInt(id)).user_id.toString()
+    ) {
+      showToast("Unauthorized: You can only edit your own profile", "error");
+      return;
+    }
+
+    try {
+      const res = await fetch(url, {
+        method,
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        body: formData,
+      });
+      const data = await res.json();
+      console.log(`${method} response:`, data);
+      if (data.success) {
+        elements.editModal.classList.add("hidden");
+        if (currentUser.role === "manager") {
+          loadAdminProfiles();
+        } else {
+          loadProfiles();
+        }
+        showToast(
+          `Faculty ${id ? "updated" : "added"}: ${formData.get("name")}`
+        );
+      } else {
+        showToast(
+          `Failed to ${id ? "update" : "add"} faculty: ${data.message}`,
+          "error"
+        );
+      }
+    } catch (err) {
+      showToast(
+        `Server error during ${id ? "update" : "add"}: ${err.message}`,
+        "error"
+      );
+      console.error(err);
+    }
+  });
+}
+
+// Add Staff
+if (elements.addStaffBtn) {
+  elements.addStaffBtn.addEventListener("click", async () => {
+    if (!(await checkToken())) return;
+    if (!currentUser || currentUser.role !== "manager") {
+      showToast("Only managers can add staff", "error");
+      return;
+    }
+    elements.editModal.classList.remove("hidden");
+    elements.editTitle.innerHTML = `<i class="fas fa-user-plus"></i> Add Faculty Profile`;
+    elements.profileForm.reset();
+    elements.profileForm.id.value = "";
+    elements.profileForm
+      .querySelector("#email-group")
+      .classList.remove("hidden");
+    elements.profileForm
+      .querySelector("#password-group")
+      .classList.remove("hidden");
+    elements.profileForm
+      .querySelector("#phone-group")
+      .classList.remove("hidden");
+    elements.profileForm.email.required = true;
+    elements.profileForm.password.required = true;
+    elements.profileForm.phone_number.required = true;
+  });
+}
+
+// Export to PDF
+if (elements.exportPdf) {
+  elements.exportPdf.addEventListener("click", () => {
+    const formData = new FormData(elements.profileForm);
+    const doc = new jsPDF();
+
+    // Title
+    doc.setFontSize(18);
+    doc.text("SSN IT Faculty Profile", 105, 20, { align: "center" }); // Center at x=105 (half of A4 width 210mm)
+
+    // Content
+    doc.setFontSize(12);
+    const content = [
+      `Name: ${formData.get("name") || "Unknown"}`,
+      `Department: ${formData.get("department") || "IT"}`,
+      `Bio: ${formData.get("bio") || "N/A"}`,
+      `Qualifications: ${formData.get("qualifications") || "N/A"}`,
+      `Experience: ${formData.get("experience") || "N/A"}`,
+      `Research Interests: ${formData.get("research") || "N/A"}`,
+    ];
+
+    let y = 40; // Start below title
+    content.forEach((line) => {
+      const splitText = doc.splitTextToSize(line, 170); // Wrap text to fit 170mm width
+      splitText.forEach((text) => {
+        doc.text(text, 105, y, { align: "center" });
+        y += 10; // Increase y for each line
+      });
+    });
+
+    doc.save(`${formData.get("name") || "faculty"}_SSN_Profile.pdf`);
+    showToast(`Exported PDF for ${formData.get("name") || "faculty"}`);
+  });
+}
+
+// Close Edit Modal
+if (elements.closeEdit) {
+  elements.closeEdit.addEventListener("click", () => {
+    elements.editModal.classList.add("hidden");
+    elements.profileForm.email.required = false;
+    elements.profileForm.password.required = false;
+    elements.profileForm.phone_number.required = false;
+  });
+}
+
+// Filter Profiles
+if (elements.searchBar) {
   elements.searchBar.addEventListener("input", filterProfiles);
-if (elements.roleFilter)
+}
+
+if (elements.roleFilter) {
   elements.roleFilter.addEventListener("change", filterProfiles);
+}
+
 if (elements.resetFilters) {
   elements.resetFilters.addEventListener("click", () => {
     elements.searchBar.value = "";
@@ -467,34 +514,30 @@ if (elements.resetFilters) {
 }
 
 function filterProfiles() {
-  const search = elements.searchBar.value.toLowerCase();
-  const role = elements.roleFilter.value;
-  const filtered = profiles.filter(
-    (p) =>
-      (p.name.toLowerCase().includes(search) ||
-        p.bio?.toLowerCase().includes(search) ||
-        p.research?.toLowerCase().includes(search)) &&
-      (!role ||
-        (role === "Professor" && p.experience?.includes("Professor")) ||
-        (role === "Lecturer" && p.experience?.includes("Lecturer")) ||
-        (role === "Researcher" && p.research))
-  );
+  const searchTerm = elements.searchBar.value.toLowerCase();
+  const role = elements.roleFilter.value.toLowerCase();
+  const filtered = profiles.filter((profile) => {
+    const matchesSearch = profile.name.toLowerCase().includes(searchTerm);
+    const matchesRole = role ? profile.bio.toLowerCase().includes(role) : true;
+    return matchesSearch && matchesRole;
+  });
   renderProfiles(filtered);
 }
 
 // Sidebar Collapse
 if (elements.collapseSidebar) {
   elements.collapseSidebar.addEventListener("click", () => {
-    document.querySelector(".sidebar").classList.toggle("collapsed");
-    elements.collapseSidebar.innerHTML = `<i class="fas fa-chevron-${
-      document.querySelector(".sidebar").classList.contains("collapsed")
-        ? "right"
-        : "left"
-    }"></i>`;
+    const sidebar = document.querySelector(".sidebar");
+    const mainContent = document.querySelector(".content");
+    sidebar.classList.toggle("collapsed");
+    mainContent.classList.toggle("expanded");
+    elements.collapseSidebar.innerHTML = sidebar.classList.contains("collapsed")
+      ? '<i class="fas fa-chevron-right"></i>'
+      : '<i class="fas fa-chevron-left"></i>';
   });
 }
 
-// Initial Load with Token Validation
+// Initial Load
 async function initialize() {
   const token = localStorage.getItem("token");
   if (token) {
@@ -504,10 +547,13 @@ async function initialize() {
         const res = await fetch(`${API_URL}/profiles`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        if (!res.ok) throw new Error("Failed to fetch profiles for user");
+        if (!res.ok) throw new Error("Failed to fetch profiles");
         profiles = await res.json();
         currentUser = {
-          id: profiles[0]?.user_id.toString(), // Assuming at least one profile exists
+          id:
+            localStorage.getItem("email") === "admin@ssn.edu.in"
+              ? "1"
+              : profiles[0]?.user_id.toString(),
           email: localStorage.getItem("email") || "Unknown",
           role:
             localStorage.getItem("email") === "admin@ssn.edu.in"
@@ -517,27 +563,23 @@ async function initialize() {
         elements.loginBtn.classList.add("hidden");
         elements.logoutBtn.classList.remove("hidden");
         elements.userStatus.innerHTML = `<i class="fas fa-user"></i> ${currentUser.email} <span class="role-tag">${currentUser.role}</span>`;
-        if (currentUser.role === "manager")
+        if (currentUser.role === "manager") {
           elements.adminDashboard.classList.remove("hidden");
+          elements.profileGrid.classList.add("hidden");
+          loadAdminProfiles();
+        } else {
+          loadProfiles();
+        }
       } catch (err) {
         console.error("Failed to initialize user:", err);
-        currentUser = null;
-        localStorage.removeItem("token");
-        localStorage.removeItem("email");
-        elements.loginBtn.classList.remove("hidden");
-        elements.logoutBtn.classList.add("hidden");
-        elements.userStatus.innerHTML = "";
+        logout();
       }
     } else {
-      currentUser = null;
-      localStorage.removeItem("token");
-      localStorage.removeItem("email");
-      elements.loginBtn.classList.remove("hidden");
-      elements.logoutBtn.classList.add("hidden");
-      elements.userStatus.innerHTML = "";
+      logout();
     }
+  } else {
+    loadProfiles();
   }
-  fetchProfiles();
 }
 
 initialize();

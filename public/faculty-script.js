@@ -18,6 +18,31 @@ const elements = {
   facultyResearch: document.getElementById("faculty-research"),
   facultyQual: document.getElementById("faculty-qual"),
   facultyExp: document.getElementById("faculty-exp"),
+  facultyTenthCert: document.getElementById("faculty-tenth-cert"),
+  facultyTwelfthCert: document.getElementById("faculty-twelfth-cert"),
+  facultyAppointmentOrder: document.getElementById("faculty-appointment-order"),
+  facultyJoiningReport: document.getElementById("faculty-joining-report"),
+  facultyUgDegree: document.getElementById("faculty-ug-degree"),
+  facultyPgMsConsolidated: document.getElementById(
+    "faculty-pg-ms-consolidated"
+  ),
+  facultyPhdDegree: document.getElementById("faculty-phd-degree"),
+  facultyJournalsList: document.getElementById("faculty-journals-list"),
+  facultyConferencesList: document.getElementById("faculty-conferences-list"),
+  facultyAuSupervisorLetter: document.getElementById(
+    "faculty-au-supervisor-letter"
+  ),
+  facultyFdpWorkshopsWebinars: document.getElementById(
+    "faculty-fdp-workshops-webinars"
+  ),
+  facultyNptelCoursera: document.getElementById("faculty-nptel-coursera"),
+  facultyInvitedTalks: document.getElementById("faculty-invited-talks"),
+  facultyProjectsSanction: document.getElementById("faculty-projects-sanction"),
+  facultyConsultancy: document.getElementById("faculty-consultancy"),
+  facultyPatent: document.getElementById("faculty-patent"),
+  facultyCommunityCert: document.getElementById("faculty-community-cert"),
+  facultyAadhar: document.getElementById("faculty-aadhar"),
+  facultyPan: document.getElementById("faculty-pan"),
   editBtn: document.getElementById("edit-btn"),
   editModal: document.getElementById("edit-modal"),
   editTitle: document.getElementById("edit-title"),
@@ -34,7 +59,7 @@ let currentProfile = null;
 let toastTimeouts = [];
 
 const urlParams = new URLSearchParams(window.location.search);
-facultyId = urlParams.get("id"); // Get faculty ID from URL
+facultyId = urlParams.get("id");
 console.log("Faculty ID from URL:", facultyId);
 
 // Utility Functions
@@ -182,6 +207,84 @@ async function loadFacultyProfile() {
     if (elements.facultyExp)
       elements.facultyExp.textContent =
         currentProfile.experience || "Not provided";
+    if (elements.facultyTenthCert)
+      elements.facultyTenthCert.href = currentProfile.tenth_cert
+        ? `${API_URL}${currentProfile.tenth_cert}`
+        : "#";
+    if (elements.facultyTwelfthCert)
+      elements.facultyTwelfthCert.href = currentProfile.twelfth_cert
+        ? `${API_URL}${currentProfile.twelfth_cert}`
+        : "#";
+    if (elements.facultyAppointmentOrder)
+      elements.facultyAppointmentOrder.href = currentProfile.appointment_order
+        ? `${API_URL}${currentProfile.appointment_order}`
+        : "#";
+    if (elements.facultyJoiningReport)
+      elements.facultyJoiningReport.href = currentProfile.joining_report
+        ? `${API_URL}${currentProfile.joining_report}`
+        : "#";
+    if (elements.facultyUgDegree)
+      elements.facultyUgDegree.href = currentProfile.ug_degree
+        ? `${API_URL}${currentProfile.ug_degree}`
+        : "#";
+    if (elements.facultyPgMsConsolidated)
+      elements.facultyPgMsConsolidated.href = currentProfile.pg_ms_consolidated
+        ? `${API_URL}${currentProfile.pg_ms_consolidated}`
+        : "#";
+    if (elements.facultyPhdDegree)
+      elements.facultyPhdDegree.href = currentProfile.phd_degree
+        ? `${API_URL}${currentProfile.phd_degree}`
+        : "#";
+    if (elements.facultyJournalsList)
+      elements.facultyJournalsList.href = currentProfile.journals_list
+        ? `${API_URL}${currentProfile.journals_list}`
+        : "#";
+    if (elements.facultyConferencesList)
+      elements.facultyConferencesList.href = currentProfile.conferences_list
+        ? `${API_URL}${currentProfile.conferences_list}`
+        : "#";
+    if (elements.facultyAuSupervisorLetter)
+      elements.facultyAuSupervisorLetter.href =
+        currentProfile.au_supervisor_letter
+          ? `${API_URL}${currentProfile.au_supervisor_letter}`
+          : "#";
+    if (elements.facultyFdpWorkshopsWebinars)
+      elements.facultyFdpWorkshopsWebinars.href =
+        currentProfile.fdp_workshops_webinars
+          ? `${API_URL}${currentProfile.fdp_workshops_webinars}`
+          : "#";
+    if (elements.facultyNptelCoursera)
+      elements.facultyNptelCoursera.href = currentProfile.nptel_coursera
+        ? `${API_URL}${currentProfile.nptel_coursera}`
+        : "#";
+    if (elements.facultyInvitedTalks)
+      elements.facultyInvitedTalks.href = currentProfile.invited_talks
+        ? `${API_URL}${currentProfile.invited_talks}`
+        : "#";
+    if (elements.facultyProjectsSanction)
+      elements.facultyProjectsSanction.href = currentProfile.projects_sanction
+        ? `${API_URL}${currentProfile.projects_sanction}`
+        : "#";
+    if (elements.facultyConsultancy)
+      elements.facultyConsultancy.href = currentProfile.consultancy
+        ? `${API_URL}${currentProfile.consultancy}`
+        : "#";
+    if (elements.facultyPatent)
+      elements.facultyPatent.href = currentProfile.patent
+        ? `${API_URL}${currentProfile.patent}`
+        : "#";
+    if (elements.facultyCommunityCert)
+      elements.facultyCommunityCert.href = currentProfile.community_cert
+        ? `${API_URL}${currentProfile.community_cert}`
+        : "#";
+    if (elements.facultyAadhar)
+      elements.facultyAadhar.href = currentProfile.aadhar
+        ? `${API_URL}${currentProfile.aadhar}`
+        : "#";
+    if (elements.facultyPan)
+      elements.facultyPan.href = currentProfile.pan
+        ? `${API_URL}${currentProfile.pan}`
+        : "#";
 
     if (
       currentUser &&
@@ -203,6 +306,31 @@ async function loadFacultyProfile() {
     if (elements.facultyResearch) elements.facultyResearch.textContent = "N/A";
     if (elements.facultyQual) elements.facultyQual.textContent = "N/A";
     if (elements.facultyExp) elements.facultyExp.textContent = "N/A";
+    if (elements.facultyTenthCert) elements.facultyTenthCert.href = "#";
+    if (elements.facultyTwelfthCert) elements.facultyTwelfthCert.href = "#";
+    if (elements.facultyAppointmentOrder)
+      elements.facultyAppointmentOrder.href = "#";
+    if (elements.facultyJoiningReport) elements.facultyJoiningReport.href = "#";
+    if (elements.facultyUgDegree) elements.facultyUgDegree.href = "#";
+    if (elements.facultyPgMsConsolidated)
+      elements.facultyPgMsConsolidated.href = "#";
+    if (elements.facultyPhdDegree) elements.facultyPhdDegree.href = "#";
+    if (elements.facultyJournalsList) elements.facultyJournalsList.href = "#";
+    if (elements.facultyConferencesList)
+      elements.facultyConferencesList.href = "#";
+    if (elements.facultyAuSupervisorLetter)
+      elements.facultyAuSupervisorLetter.href = "#";
+    if (elements.facultyFdpWorkshopsWebinars)
+      elements.facultyFdpWorkshopsWebinars.href = "#";
+    if (elements.facultyNptelCoursera) elements.facultyNptelCoursera.href = "#";
+    if (elements.facultyInvitedTalks) elements.facultyInvitedTalks.href = "#";
+    if (elements.facultyProjectsSanction)
+      elements.facultyProjectsSanction.href = "#";
+    if (elements.facultyConsultancy) elements.facultyConsultancy.href = "#";
+    if (elements.facultyPatent) elements.facultyPatent.href = "#";
+    if (elements.facultyCommunityCert) elements.facultyCommunityCert.href = "#";
+    if (elements.facultyAadhar) elements.facultyAadhar.href = "#";
+    if (elements.facultyPan) elements.facultyPan.href = "#";
   }
 }
 
@@ -223,19 +351,35 @@ if (elements.editBtn) {
     }
     if (!currentProfile) return showToast("No profile data available", "error");
     elements.editModal.classList.remove("hidden");
-    elements.editTitle.innerHTML = `<i class="fas fa-user-edit"></i> Edit IT Faculty Profile`;
+    elements.editTitle.innerHTML = `<i class="fas fa-user-edit"></i> Edit Faculty Profile`;
     elements.profileForm.id.value = facultyId;
     elements.profileForm.name.value = currentProfile.name || "";
+    elements.profileForm.department.value = currentProfile.department || "IT";
     elements.profileForm.bio.value = currentProfile.bio || "";
-    elements.profileForm.research.value = currentProfile.research || "";
     elements.profileForm.qualifications.value =
       currentProfile.qualifications || "";
     elements.profileForm.experience.value = currentProfile.experience || "";
+    elements.profileForm.research.value = currentProfile.research || "";
     elements.profileForm.profile_pic.value = "";
-    elements.profileForm.querySelector("#email-group").style.display = "none";
-    elements.profileForm.querySelector("#password-group").style.display =
-      "none";
-    elements.profileForm.querySelector("#phone-group").style.display = "none";
+    elements.profileForm.tenth_cert.value = "";
+    elements.profileForm.twelfth_cert.value = "";
+    elements.profileForm.appointment_order.value = "";
+    elements.profileForm.joining_report.value = "";
+    elements.profileForm.ug_degree.value = "";
+    elements.profileForm.pg_ms_consolidated.value = "";
+    elements.profileForm.phd_degree.value = "";
+    elements.profileForm.journals_list.value = "";
+    elements.profileForm.conferences_list.value = "";
+    elements.profileForm.au_supervisor_letter.value = "";
+    elements.profileForm.fdp_workshops_webinars.value = "";
+    elements.profileForm.nptel_coursera.value = "";
+    elements.profileForm.invited_talks.value = "";
+    elements.profileForm.projects_sanction.value = "";
+    elements.profileForm.consultancy.value = "";
+    elements.profileForm.patent.value = "";
+    elements.profileForm.community_cert.value = "";
+    elements.profileForm.aadhar.value = "";
+    elements.profileForm.pan.value = "";
   });
 }
 
@@ -293,19 +437,55 @@ if (elements.exportPdf) {
       return;
     }
     const doc = new jsPDF();
+
+    // Title
     doc.setFontSize(18);
-    doc.text("SSN IT Faculty Profile", 20, 20);
+    doc.text("SSN IT Faculty Profile", 105, 20, { align: "center" });
+
+    // Content
     doc.setFontSize(12);
-    doc.text(`Name: ${currentProfile.name || "Unknown"}`, 20, 30);
-    doc.text(`Bio: ${currentProfile.bio || "N/A"}`, 20, 40);
-    doc.text(`Research Interests: ${currentProfile.research || "N/A"}`, 20, 50);
-    doc.text(
+    const content = [
+      `Name: ${currentProfile.name || "Unknown"}`,
+      `Department: ${currentProfile.department || "IT"}`,
+      `Bio: ${currentProfile.bio || "N/A"}`,
       `Qualifications: ${currentProfile.qualifications || "N/A"}`,
-      20,
-      60
-    );
-    doc.text(`Experience: ${currentProfile.experience || "N/A"}`, 20, 70);
-    doc.save(`${currentProfile.name || "faculty"}_SSN.pdf`);
+      `Experience: ${currentProfile.experience || "N/A"}`,
+      `Research Interests: ${currentProfile.research || "N/A"}`,
+      `10th Certificate: ${currentProfile.tenth_cert || "N/A"}`,
+      `12th Certificate: ${currentProfile.twelfth_cert || "N/A"}`,
+      `Appointment Order: ${currentProfile.appointment_order || "N/A"}`,
+      `Joining Report: ${currentProfile.joining_report || "N/A"}`,
+      `UG Degree Certificate: ${currentProfile.ug_degree || "N/A"}`,
+      `Consolidated PG MS: ${currentProfile.pg_ms_consolidated || "N/A"}`,
+      `PhD Degree Certificate: ${currentProfile.phd_degree || "N/A"}`,
+      `List of Journals: ${currentProfile.journals_list || "N/A"}`,
+      `List of Conferences: ${currentProfile.conferences_list || "N/A"}`,
+      `AU Supervisor Recognition Letter: ${
+        currentProfile.au_supervisor_letter || "N/A"
+      }`,
+      `FDP/Workshops/Webinars: ${
+        currentProfile.fdp_workshops_webinars || "N/A"
+      }`,
+      `NPTEL/Coursera Courses: ${currentProfile.nptel_coursera || "N/A"}`,
+      `Invited Talks: ${currentProfile.invited_talks || "N/A"}`,
+      `Projects Sanction Order: ${currentProfile.projects_sanction || "N/A"}`,
+      `Consultancy: ${currentProfile.consultancy || "N/A"}`,
+      `Patent: ${currentProfile.patent || "N/A"}`,
+      `Community Certificate: ${currentProfile.community_cert || "N/A"}`,
+      `Aadhar: ${currentProfile.aadhar || "N/A"}`,
+      `PAN: ${currentProfile.pan || "N/A"}`,
+    ];
+
+    let y = 40;
+    content.forEach((line) => {
+      const splitText = doc.splitTextToSize(line, 170); // Wrap text to fit 170mm width
+      splitText.forEach((text) => {
+        doc.text(text, 105, y, { align: "center" });
+        y += 10; // Proper spacing
+      });
+    });
+
+    doc.save(`${currentProfile.name || "faculty"}_SSN_Profile.pdf`);
     showToast(`Exported PDF for ${currentProfile.name || "faculty"}`);
   });
 }
@@ -313,7 +493,7 @@ if (elements.exportPdf) {
 // Back Button
 if (elements.backBtn) {
   elements.backBtn.addEventListener("click", () => {
-    window.location.href = "/index.html"; // Simplified to relative path
+    window.location.href = "/index.html";
   });
 }
 
