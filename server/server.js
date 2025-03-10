@@ -36,10 +36,9 @@ const db = new sqlite3.Database(dbPath, (err) => {
   else console.log("Connected to SQLite database - SSN College of Engineering");
 });
 
-// Database Schema and Initial Seeding
+// Database Schema and Conditional Seeding
 db.serialize(async () => {
-  db.run("DROP TABLE IF EXISTS users");
-  db.run("DROP TABLE IF EXISTS profiles");
+  // Create tables if they don’t exist (no dropping)
   db.run(`
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -83,26 +82,74 @@ db.serialize(async () => {
     )
   `);
 
-  console.log("Seeding initial data for SSN College of Engineering...");
-  const hashAdmin = await bcrypt.hash("admin123", 10);
-  await runQuery(
-    "INSERT INTO users (email, password, phone_number, role) VALUES (?, ?, ?, ?)",
-    ["admin@ssn.edu.in", hashAdmin, "1234567890", "manager"],
-    (err) => {
-      if (!err)
-        console.log(
-          "Seeded admin@ssn.edu.in / admin123 / 1234567890 (manager)"
-        );
+  // Check if users table is empty before seeding
+  const userCount = await new Promise((resolve) => {
+    db.get("SELECT COUNT(*) as count FROM users", (err, row) => {
+      if (err) {
+        console.error("Error checking users table:", err);
+        resolve(-1);
+      } else {
+        resolve(row.count);
+      }
+    });
+  });
+
+  if (userCount === 0) {
+    console.log(
+      "No users found, seeding initial data for SSN College of Engineering..."
+    );
+    try {
+      const hashAdmin = await bcrypt.hash("admin123", 10);
+      await runQuery(
+        "INSERT INTO users (email, password, phone_number, role) VALUES (?, ?, ?, ?)",
+        ["admin@ssn.edu.in", hashAdmin, "1234567890", "manager"],
+        (err) => {
+          if (!err)
+            console.log(
+              "Seeded admin@ssn.edu.in / admin123 / 1234567890 (manager)"
+            );
+          else console.error("Admin seeding error:", err);
+        }
+      );
+
+      const hashStaff = await bcrypt.hash("mike789", 10);
+      await runQuery(
+        "INSERT INTO users (email, password, phone_number, role) VALUES (?, ?, ?, ?)",
+        ["mike.lee@ssn.edu.in", hashStaff, "4445556666", "staff"],
+        (err) => {
+          if (!err)
+            console.log(
+              "Seeded mike.lee@ssn.edu.in / mike789 / 4445556666 (staff - IT)"
+            );
+          else console.error("Staff seeding error:", err);
+        }
+      );
+      await runQuery(
+        "INSERT INTO profiles (user_id, name, department, bio) VALUES (?, ?, ?, ?)",
+        [2, "Dr. Mike Lee", "IT", "Information Technology Specialist"],
+        (err) => {
+          if (err) console.error("Profile seeding error:", err);
+        }
+      );
+    } catch (err) {
+      console.error("Seeding failed:", err);
     }
-  );
+  } else {
+    console.log("Users table already populated, skipping seeding.");
+  }
 });
 
 // Database Query Helpers
-const runQuery = (query, params) =>
+const runQuery = (query, params, callback) =>
   new Promise((resolve, reject) => {
     db.run(query, params, function (err) {
-      if (err) reject(err);
-      else resolve(this);
+      if (err) {
+        if (callback) callback(err);
+        reject(err);
+      } else {
+        if (callback) callback(null);
+        resolve(this);
+      }
     });
   });
 
@@ -252,7 +299,6 @@ app.post(
       password,
       phone_number,
       name,
-      department,
       bio,
       qualifications,
       experience,
@@ -343,7 +389,7 @@ app.post(
         [
           userId,
           name,
-          department || "IT",
+          "IT", // Hardcoded to IT
           bio || "",
           profilePic || null,
           qualifications || "",
@@ -418,8 +464,7 @@ app.put(
   ]),
   async (req, res) => {
     const { id } = req.params;
-    const { name, department, bio, qualifications, experience, research } =
-      req.body;
+    const { name, bio, qualifications, experience, research } = req.body;
 
     const files = req.files || {};
     const profilePic = files.profile_pic
@@ -477,7 +522,7 @@ app.put(
     const aadhar = files.aadhar ? `/uploads/${files.aadhar[0].filename}` : null;
     const pan = files.pan ? `/uploads/${files.pan[0].filename}` : null;
 
-    console.log("Update request:", { id, name, department, bio, profilePic });
+    console.log("Update request:", { id, name, bio, profilePic });
 
     if (!name) {
       console.log("Missing required field: name");
@@ -569,7 +614,7 @@ app.put(
 
       const updateQuery = `
         UPDATE profiles SET 
-          name = ?, department = ?, bio = ?, profile_pic = COALESCE(?, profile_pic), 
+          name = ?, department = 'IT', bio = ?, profile_pic = COALESCE(?, profile_pic), 
           qualifications = ?, experience = ?, research = ?,
           tenth_cert = COALESCE(?, tenth_cert), twelfth_cert = COALESCE(?, twelfth_cert),
           appointment_order = COALESCE(?, appointment_order), joining_report = COALESCE(?, joining_report),
@@ -585,7 +630,6 @@ app.put(
       `;
       const params = [
         name,
-        department || "IT",
         bio || "",
         profilePic,
         qualifications || "",

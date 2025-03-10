@@ -15,7 +15,7 @@
     <header class="header glassy">
       <div class="header-brand">
         <a href="/" class="header-link">
-          <img src="src/ssn_logo.png" alt="SSN Logo" class="header-logo" />
+          <img src="/src/ssn_logo.png" alt="SSN Logo" class="header-logo" />
           <h1>Information Technology</h1>
         </a>
       </div>
@@ -50,7 +50,7 @@
     <!-- Main Container -->
     <div class="main-container">
       <!-- Sidebar -->
-      <aside class="sidebar">
+      <aside class="sidebar glassy">
         <div class="sidebar-header">
           <h2>Filters</h2>
         </div>
@@ -59,20 +59,20 @@
             type="text"
             id="search-bar"
             placeholder="Search IT Faculty..."
-            class="input-search"
+            class="input-search glassy-input"
           />
           <i class="fas fa-search search-icon"></i>
         </div>
         <div class="filter-section">
           <label for="role-filter">Role</label>
-          <select id="role-filter" class="input-select">
+          <select id="role-filter" class="input-select glassy-select">
             <option value="">All Roles</option>
             <option value="Professor">Professor</option>
             <option value="Lecturer">Lecturer</option>
             <option value="Researcher">Researcher</option>
           </select>
         </div>
-        <button id="reset-filters" class="btn btn-secondary">
+        <button id="reset-filters" class="btn glassy-btn btn-secondary">
           Reset Filters
         </button>
       </aside>
@@ -80,18 +80,21 @@
       <!-- Content Area -->
       <main class="content">
         <!-- Profile Grid -->
-        <section id="profile-grid" class="grid-container"></section>
+        <section
+          id="profile-grid"
+          class="grid-container glassy-container"
+        ></section>
 
         <!-- Admin Dashboard -->
-        <section id="admin-dashboard" class="dashboard hidden">
+        <section id="admin-dashboard" class="dashboard hidden glassy-container">
           <div class="dashboard-header">
             <h2>Admin Dashboard</h2>
-            <button id="add-staff-btn" class="btn btn-primary">
+            <button id="add-staff-btn" class="btn glassy-btn btn-primary">
               <i class="fas fa-plus"></i> Add IT Faculty
             </button>
           </div>
           <div class="stats-container">
-            <div class="stat-card">
+            <div class="stat-card glassy">
               <i class="fas fa-users"></i>
               <h3>Total IT Faculty</h3>
               <p id="total-staff">0</p>
@@ -104,7 +107,7 @@
 
     <!-- Login Modal -->
     <div id="login-modal" class="modal hidden">
-      <div class="modal-content">
+      <div class="modal-content glassy animate-in">
         <h2><i class="fas fa-sign-in-alt"></i> Login</h2>
         <form id="login-form" class="form">
           <div class="form-group">
@@ -114,7 +117,7 @@
               id="login-email"
               name="email"
               required
-              class="input"
+              class="input glassy-input"
               placeholder="e.g., mike.lee@ssn.edu.in"
             />
           </div>
@@ -125,12 +128,16 @@
               id="login-password"
               name="password"
               required
-              class="input"
+              class="input glassy-input"
             />
           </div>
-          <button type="submit" class="btn btn-primary">Login</button>
-          <button id="close-login" class="btn btn-secondary">Cancel</button>
-          <button id="forgot-password-btn" class="btn btn-secondary">
+          <button type="submit" class="btn glassy-btn btn-primary">
+            Login
+          </button>
+          <button id="close-login" class="btn glassy-btn btn-secondary">
+            Cancel
+          </button>
+          <button id="forgot-password-btn" class="btn glassy-btn btn-secondary">
             Forgot Password?
           </button>
         </form>
@@ -139,7 +146,7 @@
 
     <!-- Forgot Password Modal -->
     <div id="forgot-password-modal" class="modal hidden">
-      <div class="modal-content">
+      <div class="modal-content glassy animate-in">
         <h2><i class="fas fa-key"></i> Reset Password</h2>
         <form id="forgot-password-form" class="form">
           <div class="form-group">
@@ -149,7 +156,7 @@
               id="forgot-phone"
               name="phone_number"
               required
-              class="input"
+              class="input glassy-input"
               placeholder="e.g., 4445556666"
             />
           </div>
@@ -160,11 +167,16 @@
               id="forgot-new-password"
               name="new_password"
               required
-              class="input"
+              class="input glassy-input"
             />
           </div>
-          <button type="submit" class="btn btn-primary">Reset Password</button>
-          <button id="close-forgot-password" class="btn btn-secondary">
+          <button type="submit" class="btn glassy-btn btn-primary">
+            Reset Password
+          </button>
+          <button
+            id="close-forgot-password"
+            class="btn glassy-btn btn-secondary"
+          >
             Cancel
           </button>
         </form>
@@ -173,11 +185,11 @@
 
     <!-- Profile Edit/Add Modal -->
     <div id="edit-modal" class="modal hidden">
-      <div class="modal-content">
+      <div class="modal-content glassy animate-in">
         <h2 id="edit-title">
           <i class="fas fa-user-edit"></i> Edit IT Profile
         </h2>
-        <form id="profile-form" class="form">
+        <form id="profile-form" class="form" enctype="multipart/form-data">
           <input type="hidden" name="id" />
           <div class="form-group" id="email-group">
             <label for="edit-email">Email</label>
@@ -185,7 +197,7 @@
               type="email"
               id="edit-email"
               name="email"
-              class="input"
+              class="input glassy-input"
               placeholder="e.g., mike.lee@ssn.edu.in"
             />
           </div>
@@ -195,7 +207,7 @@
               type="password"
               id="edit-password"
               name="password"
-              class="input"
+              class="input glassy-input"
             />
           </div>
           <div class="form-group" id="phone-group">
@@ -204,7 +216,7 @@
               type="text"
               id="edit-phone"
               name="phone_number"
-              class="input"
+              class="input glassy-input"
               placeholder="e.g., 4445556666"
             />
           </div>
@@ -215,16 +227,19 @@
               id="edit-name"
               name="name"
               required
-              class="input"
+              class="input glassy-input"
             />
           </div>
-          <div class="form-group">
+          <!-- Department hidden, enforced as IT on server -->
+          <div class="form-group hidden">
             <label for="edit-department">Department</label>
             <input
               type="text"
               id="edit-department"
               name="department"
-              class="input"
+              value="IT"
+              class="input glassy-input"
+              readonly
             />
           </div>
           <div class="form-group">
@@ -232,7 +247,7 @@
             <textarea
               id="edit-bio"
               name="bio"
-              class="input textarea"
+              class="input glassy-input textarea"
               rows="4"
             ></textarea>
           </div>
@@ -242,7 +257,7 @@
               type="text"
               id="edit-research"
               name="research"
-              class="input"
+              class="input glassy-input"
             />
           </div>
           <div class="form-group">
@@ -251,7 +266,7 @@
               type="text"
               id="edit-qualifications"
               name="qualifications"
-              class="input"
+              class="input glassy-input"
               placeholder="e.g., PhD, MSc"
             />
           </div>
@@ -261,7 +276,7 @@
               type="text"
               id="edit-experience"
               name="experience"
-              class="input"
+              class="input glassy-input"
               placeholder="e.g., 5 years teaching"
             />
           </div>
@@ -272,7 +287,7 @@
               id="edit-pic"
               name="profile_pic"
               accept="image/*"
-              class="input"
+              class="input glassy-input"
             />
           </div>
           <div class="form-group">
@@ -282,7 +297,7 @@
               id="edit-tenth-cert"
               name="tenth_cert"
               accept=".pdf,.jpg,.jpeg,.png"
-              class="input"
+              class="input glassy-input"
             />
           </div>
           <div class="form-group">
@@ -292,7 +307,7 @@
               id="edit-twelfth-cert"
               name="twelfth_cert"
               accept=".pdf,.jpg,.jpeg,.png"
-              class="input"
+              class="input glassy-input"
             />
           </div>
           <div class="form-group">
@@ -302,7 +317,7 @@
               id="edit-appointment-order"
               name="appointment_order"
               accept=".pdf,.jpg,.jpeg,.png"
-              class="input"
+              class="input glassy-input"
             />
           </div>
           <div class="form-group">
@@ -312,7 +327,7 @@
               id="edit-joining-report"
               name="joining_report"
               accept=".pdf,.jpg,.jpeg,.png"
-              class="input"
+              class="input glassy-input"
             />
           </div>
           <div class="form-group">
@@ -322,7 +337,7 @@
               id="edit-ug-degree"
               name="ug_degree"
               accept=".pdf,.jpg,.jpeg,.png"
-              class="input"
+              class="input glassy-input"
             />
           </div>
           <div class="form-group">
@@ -332,7 +347,7 @@
               id="edit-pg-ms-consolidated"
               name="pg_ms_consolidated"
               accept=".pdf,.jpg,.jpeg,.png"
-              class="input"
+              class="input glassy-input"
             />
           </div>
           <div class="form-group">
@@ -342,7 +357,7 @@
               id="edit-phd-degree"
               name="phd_degree"
               accept=".pdf,.jpg,.jpeg,.png"
-              class="input"
+              class="input glassy-input"
             />
           </div>
           <div class="form-group">
@@ -352,7 +367,7 @@
               id="edit-journals-list"
               name="journals_list"
               accept=".pdf,.jpg,.jpeg,.png"
-              class="input"
+              class="input glassy-input"
             />
           </div>
           <div class="form-group">
@@ -362,7 +377,7 @@
               id="edit-conferences-list"
               name="conferences_list"
               accept=".pdf,.jpg,.jpeg,.png"
-              class="input"
+              class="input glassy-input"
             />
           </div>
           <div class="form-group">
@@ -374,7 +389,7 @@
               id="edit-au-supervisor-letter"
               name="au_supervisor_letter"
               accept=".pdf,.jpg,.jpeg,.png"
-              class="input"
+              class="input glassy-input"
             />
           </div>
           <div class="form-group">
@@ -386,7 +401,7 @@
               id="edit-fdp-workshops-webinars"
               name="fdp_workshops_webinars"
               accept=".pdf,.jpg,.jpeg,.png"
-              class="input"
+              class="input glassy-input"
             />
           </div>
           <div class="form-group">
@@ -398,7 +413,7 @@
               id="edit-nptel-coursera"
               name="nptel_coursera"
               accept=".pdf,.jpg,.jpeg,.png"
-              class="input"
+              class="input glassy-input"
             />
           </div>
           <div class="form-group">
@@ -408,7 +423,7 @@
               id="edit-invited-talks"
               name="invited_talks"
               accept=".pdf,.jpg,.jpeg,.png"
-              class="input"
+              class="input glassy-input"
             />
           </div>
           <div class="form-group">
@@ -420,7 +435,7 @@
               id="edit-projects-sanction"
               name="projects_sanction"
               accept=".pdf,.jpg,.jpeg,.png"
-              class="input"
+              class="input glassy-input"
             />
           </div>
           <div class="form-group">
@@ -430,7 +445,7 @@
               id="edit-consultancy"
               name="consultancy"
               accept=".pdf,.jpg,.jpeg,.png"
-              class="input"
+              class="input glassy-input"
             />
           </div>
           <div class="form-group">
@@ -440,7 +455,7 @@
               id="edit-patent"
               name="patent"
               accept=".pdf,.jpg,.jpeg,.png"
-              class="input"
+              class="input glassy-input"
             />
           </div>
           <div class="form-group">
@@ -450,7 +465,7 @@
               id="edit-community-cert"
               name="community_cert"
               accept=".pdf,.jpg,.jpeg,.png"
-              class="input"
+              class="input glassy-input"
             />
           </div>
           <div class="form-group">
@@ -460,7 +475,7 @@
               id="edit-aadhar"
               name="aadhar"
               accept=".pdf,.jpg,.jpeg,.png"
-              class="input"
+              class="input glassy-input"
             />
           </div>
           <div class="form-group">
@@ -470,15 +485,19 @@
               id="edit-pan"
               name="pan"
               accept=".pdf,.jpg,.jpeg,.png"
-              class="input"
+              class="input glassy-input"
             />
           </div>
           <div class="form-actions">
-            <button type="submit" class="btn btn-primary">Save</button>
-            <button id="export-pdf" class="btn btn-secondary">
+            <button type="submit" class="btn glassy-btn btn-primary">
+              Save
+            </button>
+            <button id="export-pdf" class="btn glassy-btn btn-secondary">
               Export PDF
             </button>
-            <button id="close-edit" class="btn btn-secondary">Cancel</button>
+            <button id="close-edit" class="btn glassy-btn btn-secondary">
+              Cancel
+            </button>
           </div>
         </form>
       </div>

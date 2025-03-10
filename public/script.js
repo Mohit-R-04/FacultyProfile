@@ -24,7 +24,6 @@ const elements = {
   searchBar: document.getElementById("search-bar"),
   roleFilter: document.getElementById("role-filter"),
   resetFilters: document.getElementById("reset-filters"),
-  collapseSidebar: document.getElementById("collapse-sidebar"),
   toastContainer: document.getElementById("toast-container"),
   totalStaff: document.getElementById("total-staff"),
   forgotPasswordBtn: document.getElementById("forgot-password-btn"),
@@ -94,7 +93,6 @@ function logout() {
   elements.userStatus.innerHTML = "";
   elements.adminDashboard.classList.add("hidden");
   elements.profileGrid.classList.remove("hidden");
-  elements.loginModal.classList.remove("hidden");
   loadProfiles();
 }
 
@@ -228,25 +226,32 @@ async function loadProfiles() {
 
 function renderProfiles(profileList) {
   elements.profileGrid.innerHTML = "";
+  if (!profileList.length) {
+    elements.profileGrid.innerHTML =
+      '<div class="grid-placeholder">No IT faculty profiles found</div>';
+    return;
+  }
   profileList.forEach((profile) => {
     const card = document.createElement("div");
     card.className = "profile-card glassy";
     card.innerHTML = `
-    <img src="${
-      profile.profile_pic
-        ? `${API_URL}${profile.profile_pic}?t=${Date.now()}`
-        : "https://via.placeholder.com/150"
-    }" alt="${profile.name}" class="profile-avatar">
-    <h3>${profile.name || "Unknown"}</h3>
-    <p>${
-      profile.bio ? profile.bio.substring(0, 100) + "..." : "No bio available"
-    }</p>
-    <button class="btn btn-primary" onclick="window.location.href='faculty-profile.html?id=${
-      profile.id
-    }'">
-      View Profile
-    </button>
-  `;
+      <img src="${
+        profile.profile_pic
+          ? `${API_URL}${profile.profile_pic}?t=${Date.now()}`
+          : "https://via.placeholder.com/150"
+      }" alt="${profile.name}" class="profile-avatar">
+      <h3>${profile.name || "Unknown"}</h3>
+      <p><strong>Qualifications:</strong> ${profile.qualifications || "N/A"}</p>
+      <p><strong>Experience:</strong> ${profile.experience || "N/A"}</p>
+      <p>${
+        profile.bio ? profile.bio.substring(0, 50) + "..." : "No bio available"
+      }</p>
+      <button class="btn glassy-btn btn-primary" onclick="window.location.href='faculty-profile.html?id=${
+        profile.id
+      }'">
+        View Profile
+      </button>
+    `;
     elements.profileGrid.appendChild(card);
   });
 }
@@ -276,27 +281,29 @@ function renderAdminProfiles(profileList) {
     const card = document.createElement("div");
     card.className = "profile-card glassy";
     card.innerHTML = `
-    <img src="${
-      profile.profile_pic
-        ? `${API_URL}${profile.profile_pic}?t=${Date.now()}`
-        : "https://via.placeholder.com/150"
-    }" alt="${profile.name}" class="profile-avatar">
-    <h3>${profile.name || "Unknown"}</h3>
-    <p>${
-      profile.bio ? profile.bio.substring(0, 100) + "..." : "No bio available"
-    }</p>
-    <div class="profile-actions">
-      <button class="btn btn-primary" onclick="viewProfile(${profile.id})">
-        View
-      </button>
-      <button class="btn btn-secondary" onclick="editProfile(${profile.id})">
-        Edit
-      </button>
-      <button class="btn btn-danger" onclick="deleteProfile(${profile.id})">
-        Delete
-      </button>
-    </div>
-  `;
+      <img src="${
+        profile.profile_pic
+          ? `${API_URL}${profile.profile_pic}?t=${Date.now()}`
+          : "https://via.placeholder.com/150"
+      }" alt="${profile.name}" class="profile-avatar">
+      <h3>${profile.name || "Unknown"}</h3>
+      <p><strong>Qualifications:</strong> ${profile.qualifications || "N/A"}</p>
+      <p><strong>Experience:</strong> ${profile.experience || "N/A"}</p>
+      <p>${
+        profile.bio ? profile.bio.substring(0, 50) + "..." : "No bio available"
+      }</p>
+      <div class="profile-actions">
+        <button class="btn glassy-btn btn-primary" onclick="viewProfile(${
+          profile.id
+        })">View</button>
+        <button class="btn glassy-btn btn-secondary" onclick="editProfile(${
+          profile.id
+        })">Edit</button>
+        <button class="btn glassy-btn btn-danger" onclick="deleteProfile(${
+          profile.id
+        })">Delete</button>
+      </div>
+    `;
     elements.adminProfiles.appendChild(card);
   });
 }
@@ -311,18 +318,22 @@ async function editProfile(id) {
   if (!(await checkToken())) return;
   const profile = profiles.find((p) => p.id === id);
   if (!profile) return showToast("Profile not found", "error");
+  if (
+    currentUser.role !== "manager" &&
+    currentUser.id !== profile.user_id.toString()
+  ) {
+    showToast("Unauthorized: You can only edit your own profile", "error");
+    return;
+  }
   elements.editModal.classList.remove("hidden");
   elements.editTitle.innerHTML = `<i class="fas fa-user-edit"></i> Edit Faculty Profile`;
   elements.profileForm.id.value = id;
-  elements.profileForm.email.value = ""; // Email not editable
-  elements.profileForm.password.value = ""; // Password not editable
-  elements.profileForm.phone_number.value = ""; // Phone not editable
   elements.profileForm.name.value = profile.name || "";
-  elements.profileForm.department.value = profile.department || "IT";
   elements.profileForm.bio.value = profile.bio || "";
   elements.profileForm.qualifications.value = profile.qualifications || "";
   elements.profileForm.experience.value = profile.experience || "";
   elements.profileForm.research.value = profile.research || "";
+  // File inputs can't be pre-populated due to security; reset instead
   elements.profileForm.profile_pic.value = "";
   elements.profileForm.tenth_cert.value = "";
   elements.profileForm.twelfth_cert.value = "";
@@ -360,6 +371,7 @@ async function deleteProfile(id) {
     const data = await res.json();
     if (data.success) {
       showToast("Profile deleted successfully");
+      profiles = profiles.filter((p) => p.id !== id);
       loadAdminProfiles();
     } else {
       showToast("Failed to delete profile: " + data.message, "error");
@@ -379,16 +391,6 @@ if (elements.profileForm) {
     const id = formData.get("id");
     const method = id ? "PUT" : "POST";
     const url = id ? `${API_URL}/profiles/${id}` : `${API_URL}/profiles`;
-
-    if (
-      id &&
-      currentUser.role !== "manager" &&
-      currentUser.id !==
-        profiles.find((p) => p.id === parseInt(id)).user_id.toString()
-    ) {
-      showToast("Unauthorized: You can only edit your own profile", "error");
-      return;
-    }
 
     try {
       const res = await fetch(url, {
@@ -453,34 +455,28 @@ if (elements.addStaffBtn) {
 
 // Export to PDF
 if (elements.exportPdf) {
-  elements.exportPdf.addEventListener("click", () => {
+  elements.exportPdf.addEventListener("click", (e) => {
+    e.preventDefault(); // Prevent form submission
     const formData = new FormData(elements.profileForm);
     const doc = new jsPDF();
-
-    // Title
     doc.setFontSize(18);
-    doc.text("SSN IT Faculty Profile", 105, 20, { align: "center" }); // Center at x=105 (half of A4 width 210mm)
-
-    // Content
+    doc.text("SSN IT Faculty Profile", 105, 20, { align: "center" });
     doc.setFontSize(12);
     const content = [
       `Name: ${formData.get("name") || "Unknown"}`,
-      `Department: ${formData.get("department") || "IT"}`,
       `Bio: ${formData.get("bio") || "N/A"}`,
       `Qualifications: ${formData.get("qualifications") || "N/A"}`,
       `Experience: ${formData.get("experience") || "N/A"}`,
       `Research Interests: ${formData.get("research") || "N/A"}`,
     ];
-
-    let y = 40; // Start below title
+    let y = 40;
     content.forEach((line) => {
-      const splitText = doc.splitTextToSize(line, 170); // Wrap text to fit 170mm width
+      const splitText = doc.splitTextToSize(line, 170);
       splitText.forEach((text) => {
-        doc.text(text, 105, y, { align: "center" });
-        y += 10; // Increase y for each line
+        doc.text(text, 20, y); // Left-aligned for simplicity
+        y += 10;
       });
     });
-
     doc.save(`${formData.get("name") || "faculty"}_SSN_Profile.pdf`);
     showToast(`Exported PDF for ${formData.get("name") || "faculty"}`);
   });
@@ -497,14 +493,10 @@ if (elements.closeEdit) {
 }
 
 // Filter Profiles
-if (elements.searchBar) {
+if (elements.searchBar)
   elements.searchBar.addEventListener("input", filterProfiles);
-}
-
-if (elements.roleFilter) {
+if (elements.roleFilter)
   elements.roleFilter.addEventListener("change", filterProfiles);
-}
-
 if (elements.resetFilters) {
   elements.resetFilters.addEventListener("click", () => {
     elements.searchBar.value = "";
@@ -517,24 +509,18 @@ function filterProfiles() {
   const searchTerm = elements.searchBar.value.toLowerCase();
   const role = elements.roleFilter.value.toLowerCase();
   const filtered = profiles.filter((profile) => {
-    const matchesSearch = profile.name.toLowerCase().includes(searchTerm);
-    const matchesRole = role ? profile.bio.toLowerCase().includes(role) : true;
+    const matchesSearch =
+      profile.name.toLowerCase().includes(searchTerm) ||
+      (profile.bio || "").toLowerCase().includes(searchTerm) ||
+      (profile.qualifications || "").toLowerCase().includes(searchTerm) ||
+      (profile.experience || "").toLowerCase().includes(searchTerm);
+    const matchesRole = role
+      ? (profile.experience || "").toLowerCase().includes(role) ||
+        (profile.bio || "").toLowerCase().includes(role)
+      : true;
     return matchesSearch && matchesRole;
   });
   renderProfiles(filtered);
-}
-
-// Sidebar Collapse
-if (elements.collapseSidebar) {
-  elements.collapseSidebar.addEventListener("click", () => {
-    const sidebar = document.querySelector(".sidebar");
-    const mainContent = document.querySelector(".content");
-    sidebar.classList.toggle("collapsed");
-    mainContent.classList.toggle("expanded");
-    elements.collapseSidebar.innerHTML = sidebar.classList.contains("collapsed")
-      ? '<i class="fas fa-chevron-right"></i>'
-      : '<i class="fas fa-chevron-left"></i>';
-  });
 }
 
 // Initial Load
