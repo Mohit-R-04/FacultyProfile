@@ -565,10 +565,9 @@ app.put(
     }
 
     try {
-      const profile = await getQuery(
-        "SELECT user_id, profile_pic, tenth_cert, twelfth_cert, appointment_order, joining_report, ug_degree, pg_ms_consolidated, phd_degree, journals_list, conferences_list, au_supervisor_letter, fdp_workshops_webinars, nptel_coursera, invited_talks, projects_sanction, consultancy, patent, community_cert, aadhar, pan FROM profiles WHERE id = ?",
-        [id]
-      );
+      const profile = await getQuery("SELECT * FROM profiles WHERE id = ?", [
+        id,
+      ]);
       if (!profile) {
         console.log(`Faculty profile not found: ${id}`);
         return res
@@ -576,10 +575,7 @@ app.put(
           .json({ success: false, message: "Profile not found" });
       }
 
-      if (
-        req.user.role !== "manager" &&
-        req.user.id !== profile.user_id.toString()
-      ) {
+      if (req.user.role !== "manager" && req.user.id !== profile.user_id) {
         console.log(
           `Unauthorized update by ${req.user.email} on profile ${id}`
         );
@@ -720,10 +716,7 @@ app.delete("/profiles/:id", authenticateToken, async (req, res) => {
   }
 
   try {
-    const profile = await getQuery(
-      "SELECT profile_pic, tenth_cert, twelfth_cert, appointment_order, joining_report, ug_degree, pg_ms_consolidated, phd_degree, journals_list, conferences_list, au_supervisor_letter, fdp_workshops_webinars, nptel_coursera, invited_talks, projects_sanction, consultancy, patent, community_cert, aadhar, pan FROM profiles WHERE id = ?",
-      [id]
-    );
+    const profile = await getQuery("SELECT * FROM profiles WHERE id = ?", [id]);
     if (!profile) {
       console.log(`Faculty profile not found: ${id}`);
       return res

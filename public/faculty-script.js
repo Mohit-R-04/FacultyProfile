@@ -78,21 +78,6 @@ const showToast = (message, type = "success") => {
   toastTimeouts.push(timeout);
 };
 
-// Validate Token
-async function validateToken(token) {
-  if (!token || !facultyId) return false;
-  try {
-    const res = await fetch(`${API_URL}/profiles/${facultyId}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!res.ok) throw new Error("Token validation failed");
-    return true;
-  } catch (err) {
-    console.error("Token validation error:", err);
-    return false;
-  }
-}
-
 // Theme Management
 if (elements.themeToggle) {
   elements.themeToggle.addEventListener("change", () => {
@@ -154,6 +139,7 @@ if (elements.loginForm) {
         elements.loginBtn.classList.add("hidden");
         elements.logoutBtn.classList.remove("hidden");
         elements.userStatus.innerHTML = `<i class="fas fa-user"></i> ${currentUser.email} <span class="role-tag">${currentUser.role}</span>`;
+        fetchCurrentUser(); // Fetch full user details after login
         loadFacultyProfile();
         showToast(`Welcome, ${currentUser.email}!`);
       } else {
@@ -164,6 +150,34 @@ if (elements.loginForm) {
       console.error(err);
     }
   });
+}
+
+// Fetch Current User Details
+async function fetchCurrentUser() {
+  const token = localStorage.getItem("token");
+  if (!token) return;
+  try {
+    const res = await fetch(`${API_URL}/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await res.json();
+    if (data.success) {
+      currentUser = data.user; // Update with full user data including profileId
+      console.log("Current user fetched:", currentUser);
+      elements.userStatus.innerHTML = `<i class="fas fa-user"></i> ${currentUser.email} <span class="role-tag">${currentUser.role}</span>`;
+    } else {
+      throw new Error(data.message);
+    }
+  } catch (err) {
+    console.error("Failed to fetch current user:", err);
+    currentUser = null;
+    localStorage.removeItem("token");
+    localStorage.removeItem("email");
+    elements.loginBtn.classList.remove("hidden");
+    elements.logoutBtn.classList.add("hidden");
+    elements.userStatus.innerHTML = "";
+    showToast("Session invalid. Please log in again.", "error");
+  }
 }
 
 // Load Faculty Profile with Hiding Logic
@@ -293,10 +307,10 @@ async function loadFacultyProfile() {
     setLinkField("faculty-aadhar", "aadhar-item", currentProfile.aadhar);
     setLinkField("faculty-pan", "pan-item", currentProfile.pan);
 
+    // Show edit button only if current user owns the profile or is a manager
     if (
       currentUser &&
-      (currentUser.id === currentProfile.user_id.toString() ||
-        currentUser.role === "manager")
+      (currentUser.profileId == facultyId || currentUser.role === "manager")
     ) {
       elements.editBtn.classList.remove("hidden");
     } else {
@@ -381,10 +395,7 @@ if (elements.editBtn) {
       elements.loginModal.classList.remove("hidden");
       return;
     }
-    if (
-      currentUser.id !== currentProfile.user_id.toString() &&
-      currentUser.role !== "manager"
-    ) {
+    if (currentUser.profileId != facultyId && currentUser.role !== "manager") {
       showToast("Unauthorized: You can only edit your own profile", "error");
       return;
     }
@@ -430,10 +441,7 @@ if (elements.profileForm) {
       elements.loginModal.classList.remove("hidden");
       return;
     }
-    if (
-      currentUser.id !== currentProfile.user_id.toString() &&
-      currentUser.role !== "manager"
-    ) {
+    if (currentUser.profileId != facultyId && currentUser.role !== "manager") {
       showToast("Unauthorized: You can only edit your own profile", "error");
       return;
     }
@@ -561,43 +569,7 @@ if (elements.backBtn) {
 async function initialize() {
   const token = localStorage.getItem("token");
   if (token) {
-    const isValid = await validateToken(token);
-    if (isValid) {
-      try {
-        const res = await fetch(`${API_URL}/profiles/${facultyId}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!res.ok) throw new Error("Failed to fetch profile");
-        const data = await res.json();
-        currentProfile = data;
-        currentUser = {
-          id: data.user_id.toString(),
-          email: localStorage.getItem("email") || "Unknown",
-          role:
-            localStorage.getItem("email") === "admin@ssn.edu.in"
-              ? "manager"
-              : "staff",
-        };
-        elements.loginBtn.classList.add("hidden");
-        elements.logoutBtn.classList.remove("hidden");
-        elements.userStatus.innerHTML = `<i class="fas fa-user"></i> ${currentUser.email} <span class="role-tag">${currentUser.role}</span>`;
-      } catch (err) {
-        console.error("Failed to initialize user:", err);
-        currentUser = null;
-        localStorage.removeItem("token");
-        localStorage.removeItem("email");
-        elements.loginBtn.classList.remove("hidden");
-        elements.logoutBtn.classList.add("hidden");
-        elements.userStatus.innerHTML = "";
-      }
-    } else {
-      currentUser = null;
-      localStorage.removeItem("token");
-      localStorage.removeItem("email");
-      elements.loginBtn.classList.remove("hidden");
-      elements.logoutBtn.classList.add("hidden");
-      elements.userStatus.innerHTML = "";
-    }
+    await fetchCurrentUser(); // Fetch full user details
   }
   loadFacultyProfile();
 }
