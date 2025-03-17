@@ -38,7 +38,6 @@ const db = new sqlite3.Database(dbPath, (err) => {
 
 // Database Schema and Conditional Seeding
 db.serialize(async () => {
-  // Create tables if they don’t exist (no dropping)
   db.run(`
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -82,7 +81,6 @@ db.serialize(async () => {
     )
   `);
 
-  // Check if users table is empty before seeding
   const userCount = await new Promise((resolve) => {
     db.get("SELECT COUNT(*) as count FROM users", (err, row) => {
       if (err) {
@@ -221,6 +219,41 @@ app.post("/login", async (req, res) => {
     });
   } catch (err) {
     console.error("Login error:", err);
+    res
+      .status(500)
+      .json({ success: false, message: "Server error: " + err.message });
+  }
+});
+
+// Get Current User
+app.get("/me", authenticateToken, async (req, res) => {
+  try {
+    const user = await getQuery(
+      "SELECT id, email, role FROM users WHERE id = ?",
+      [req.user.id]
+    );
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
+    const profile = await getQuery(
+      "SELECT id, name FROM profiles WHERE user_id = ?",
+      [req.user.id]
+    );
+    console.log(`Fetched current user: ${req.user.email}`);
+    res.json({
+      success: true,
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        profileId: profile?.id || null,
+        name: profile?.name || null,
+      },
+    });
+  } catch (err) {
+    console.error("Fetch current user error:", err);
     res
       .status(500)
       .json({ success: false, message: "Server error: " + err.message });
@@ -389,7 +422,7 @@ app.post(
         [
           userId,
           name,
-          "IT", // Hardcoded to IT
+          "IT",
           bio || "",
           profilePic || null,
           qualifications || "",
@@ -556,7 +589,6 @@ app.put(
         });
       }
 
-      // Delete old files if new ones are uploaded
       const oldFiles = [
         profile.profile_pic,
         profile.tenth_cert,
