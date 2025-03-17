@@ -54,16 +54,12 @@ const elements = {
 
 // State Variables
 let currentUser = null;
-let facultyId = null;
+let facultyId = new URLSearchParams(window.location.search).get("id");
 let currentProfile = null;
-let toastTimeouts = [];
-
-const urlParams = new URLSearchParams(window.location.search);
-facultyId = urlParams.get("id");
-console.log("Faculty ID from URL:", facultyId);
 
 // Utility Functions
-const showToast = (message, type = "success") => {
+function showToast(message, type = "success") {
+  console.log(`[TOAST] ${type}: ${message}`);
   const toast = document.createElement("div");
   toast.className = `toast toast-${type}`;
   toast.innerHTML = `<i class="fas fa-${
@@ -71,12 +67,83 @@ const showToast = (message, type = "success") => {
   }"></i> ${message}`;
   elements.toastContainer.appendChild(toast);
   setTimeout(() => toast.classList.add("show"), 100);
-  const timeout = setTimeout(() => {
+  setTimeout(() => {
     toast.classList.remove("show");
     setTimeout(() => toast.remove(), 300);
   }, 3000);
-  toastTimeouts.push(timeout);
-};
+}
+
+// Validate Token and Fetch User Info
+async function validateToken(token) {
+  console.log(
+    "[validateToken] Token:",
+    token ? token.substring(0, 10) + "..." : "No token"
+  );
+  if (!token) {
+    console.log("[validateToken] No token, returning null");
+    return null;
+  }
+  try {
+    console.log("[validateToken] Fetching:", `${API_URL}/me`);
+    const response = await fetch(`${API_URL}/me`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
+    console.log(
+      "[validateToken] Status:",
+      response.status,
+      response.statusText
+    );
+    const data = await response.json();
+    console.log("[validateToken] Raw response:", JSON.stringify(data, null, 2));
+
+    if (!response.ok) {
+      throw new Error(
+        `HTTP error: ${response.status} - ${data.message || "Unknown error"}`
+      );
+    }
+    if (!data.success || !data.user) {
+      throw new Error("Response lacks success or user data");
+    }
+
+    const user = {
+      id: data.user.id ? String(data.user.id) : null,
+      email: typeof data.user.email === "string" ? data.user.email : null,
+      role: typeof data.user.role === "string" ? data.user.role : null,
+    };
+
+    if (!user.id || !user.email || !user.role) {
+      throw new Error(
+        `Invalid user data: id=${user.id}, email=${user.email}, role=${user.role}`
+      );
+    }
+
+    console.log("[validateToken] Success, user:", user);
+    return user;
+  } catch (err) {
+    console.error("[validateToken] Error:", err.message);
+    return null;
+  }
+}
+
+// Update UI Based on User State
+function updateUI() {
+  console.log("[updateUI] Current user:", currentUser);
+  if (currentUser && currentUser.id && currentUser.email && currentUser.role) {
+    elements.userStatus.innerHTML = `<i class="fas fa-user"></i> ${currentUser.email} <span class="role-tag">${currentUser.role}</span>`;
+    elements.loginBtn.classList.add("hidden");
+    elements.logoutBtn.classList.remove("hidden");
+  } else {
+    console.log("[updateUI] Invalid or no user, resetting UI");
+    elements.userStatus.innerHTML = "";
+    elements.loginBtn.classList.remove("hidden");
+    elements.logoutBtn.classList.add("hidden");
+    elements.editBtn.classList.add("hidden");
+  }
+}
 
 // Theme Management
 if (elements.themeToggle) {
@@ -87,7 +154,6 @@ if (elements.themeToggle) {
       elements.themeToggle.checked ? "dark" : "light"
     );
   });
-
   const savedTheme = localStorage.getItem("theme");
   if (savedTheme === "dark") {
     document.body.classList.add("dark-theme");
@@ -95,35 +161,27 @@ if (elements.themeToggle) {
   }
 }
 
-// Authentication
-if (elements.loginBtn)
-  elements.loginBtn.addEventListener("click", () =>
-    elements.loginModal.classList.remove("hidden")
-  );
-if (elements.closeLogin)
-  elements.closeLogin.addEventListener("click", () =>
-    elements.loginModal.classList.add("hidden")
-  );
-
-if (elements.logoutBtn) {
-  elements.logoutBtn.addEventListener("click", () => {
-    currentUser = null;
-    localStorage.removeItem("token");
-    localStorage.removeItem("email");
-    elements.loginBtn.classList.remove("hidden");
-    elements.logoutBtn.classList.add("hidden");
-    elements.userStatus.innerHTML = "";
-    elements.editBtn.classList.add("hidden");
-    loadFacultyProfile();
-    showToast("Logged out successfully");
+// Event Listeners
+if (elements.loginBtn) {
+  elements.loginBtn.addEventListener("click", () => {
+    console.log("[loginBtn] Opening modal");
+    elements.loginModal.classList.remove("hidden");
+  });
+}
+if (elements.closeLogin) {
+  elements.closeLogin.addEventListener("click", () => {
+    console.log("[closeLogin] Closing modal");
+    elements.loginModal.classList.add("hidden");
   });
 }
 
+// Login
 if (elements.loginForm) {
   elements.loginForm.addEventListener("submit", async (e) => {
     e.preventDefault();
     const email = elements.loginForm.email.value;
     const password = elements.loginForm.password.value;
+    console.log("[login] Attempting:", email);
     try {
       const res = await fetch(`${API_URL}/login`, {
         method: "POST",
@@ -131,80 +189,82 @@ if (elements.loginForm) {
         body: JSON.stringify({ email, password }),
       });
       const data = await res.json();
-      if (data.success) {
-        currentUser = data.user;
+      console.log("[login] Response:", JSON.stringify(data, null, 2));
+      if (
+        data.success &&
+        data.token &&
+        data.user &&
+        data.user.id &&
+        data.user.email &&
+        data.user.role
+      ) {
+        currentUser = {
+          id: String(data.user.id),
+          email: data.user.email,
+          role: data.user.role,
+        };
         localStorage.setItem("token", data.token);
         localStorage.setItem("email", data.user.email);
+        console.log("[login] Token set:", data.token.substring(0, 10) + "...");
+        console.log("[login] User set:", currentUser);
         elements.loginModal.classList.add("hidden");
-        elements.loginBtn.classList.add("hidden");
-        elements.logoutBtn.classList.remove("hidden");
-        elements.userStatus.innerHTML = `<i class="fas fa-user"></i> ${currentUser.email} <span class="role-tag">${currentUser.role}</span>`;
-        fetchCurrentUser(); // Fetch full user details after login
-        loadFacultyProfile();
+        updateUI();
+        await loadFacultyProfile();
         showToast(`Welcome, ${currentUser.email}!`);
       } else {
-        showToast("Login failed: " + data.message, "error");
+        showToast(
+          "Login failed: " + (data.message || "Invalid response"),
+          "error"
+        );
       }
     } catch (err) {
-      showToast("Server error during login: " + err.message, "error");
-      console.error(err);
+      showToast("Login error: " + err.message, "error");
+      console.error("[login] Error:", err);
     }
   });
 }
 
-// Fetch Current User Details
-async function fetchCurrentUser() {
-  const token = localStorage.getItem("token");
-  if (!token) return;
-  try {
-    const res = await fetch(`${API_URL}/me`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    const data = await res.json();
-    if (data.success) {
-      currentUser = data.user; // Update with full user data including profileId
-      console.log("Current user fetched:", currentUser);
-      elements.userStatus.innerHTML = `<i class="fas fa-user"></i> ${currentUser.email} <span class="role-tag">${currentUser.role}</span>`;
-    } else {
-      throw new Error(data.message);
-    }
-  } catch (err) {
-    console.error("Failed to fetch current user:", err);
+// Logout
+if (elements.logoutBtn) {
+  elements.logoutBtn.addEventListener("click", () => {
+    console.log("[logout] Clearing user session");
     currentUser = null;
     localStorage.removeItem("token");
     localStorage.removeItem("email");
-    elements.loginBtn.classList.remove("hidden");
-    elements.logoutBtn.classList.add("hidden");
-    elements.userStatus.innerHTML = "";
-    showToast("Session invalid. Please log in again.", "error");
-  }
+    updateUI();
+    loadFacultyProfile();
+    showToast("Logged out successfully");
+  });
 }
 
-// Load Faculty Profile with Hiding Logic
+// Load Faculty Profile
 async function loadFacultyProfile() {
+  console.log("[loadFacultyProfile] Faculty ID:", facultyId);
   if (!facultyId || facultyId === "undefined") {
-    showToast("No valid faculty ID provided in URL", "error");
-    console.error("No valid faculty ID provided in URL:", facultyId);
+    console.log("[loadFacultyProfile] No valid ID");
     if (elements.facultyName)
-      elements.facultyName.textContent = "Invalid Profile";
+      elements.facultyName.textContent = "No Profile Selected";
     return;
   }
-
   try {
     const token = localStorage.getItem("token");
+    console.log(
+      "[loadFacultyProfile] Token:",
+      token ? token.substring(0, 10) + "..." : "None"
+    );
     const headers = token ? { Authorization: `Bearer ${token}` } : {};
     const res = await fetch(`${API_URL}/profiles/${facultyId}`, {
       headers,
       cache: "no-store",
     });
-    if (!res.ok) {
-      const errorText = await res.text();
-      throw new Error(`Failed to fetch profile: ${res.status} - ${errorText}`);
-    }
+    console.log("[loadFacultyProfile] Status:", res.status);
+    if (!res.ok) throw new Error("Profile fetch failed: " + res.status);
     currentProfile = await res.json();
-    console.log("Fetched faculty profile:", currentProfile);
+    console.log(
+      "[loadFacultyProfile] Profile:",
+      JSON.stringify(currentProfile, null, 2)
+    );
 
-    // Populate and conditionally hide fields
     if (elements.facultyPic)
       elements.facultyPic.src = currentProfile.profile_pic
         ? `${API_URL}${currentProfile.profile_pic}?t=${Date.now()}`
@@ -212,127 +272,115 @@ async function loadFacultyProfile() {
     if (elements.facultyName)
       elements.facultyName.textContent = currentProfile.name || "Unknown";
 
-    // Text fields
-    setTextField("faculty-bio", "bio-item", currentProfile.bio);
-    setTextField("faculty-research", "research-item", currentProfile.research);
-    setTextField(
+    setField("faculty-bio", "bio-item", currentProfile.bio);
+    setField("faculty-research", "research-item", currentProfile.research);
+    setField(
       "faculty-qual",
       "qualifications-item",
       currentProfile.qualifications
     );
-    setTextField("faculty-exp", "experience-item", currentProfile.experience);
+    setField("faculty-exp", "experience-item", currentProfile.experience);
 
-    // Link fields
-    setLinkField(
-      "faculty-tenth-cert",
-      "tenth-cert-item",
-      currentProfile.tenth_cert
-    );
-    setLinkField(
+    setLink("faculty-tenth-cert", "tenth-cert-item", currentProfile.tenth_cert);
+    setLink(
       "faculty-twelfth-cert",
       "twelfth-cert-item",
       currentProfile.twelfth_cert
     );
-    setLinkField(
+    setLink(
       "faculty-appointment-order",
       "appointment-order-item",
       currentProfile.appointment_order
     );
-    setLinkField(
+    setLink(
       "faculty-joining-report",
       "joining-report-item",
       currentProfile.joining_report
     );
-    setLinkField(
-      "faculty-ug-degree",
-      "ug-degree-item",
-      currentProfile.ug_degree
-    );
-    setLinkField(
+    setLink("faculty-ug-degree", "ug-degree-item", currentProfile.ug_degree);
+    setLink(
       "faculty-pg-ms-consolidated",
       "pg-ms-consolidated-item",
       currentProfile.pg_ms_consolidated
     );
-    setLinkField(
-      "faculty-phd-degree",
-      "phd-degree-item",
-      currentProfile.phd_degree
-    );
-    setLinkField(
+    setLink("faculty-phd-degree", "phd-degree-item", currentProfile.phd_degree);
+    setLink(
       "faculty-journals-list",
       "journals-list-item",
       currentProfile.journals_list
     );
-    setLinkField(
+    setLink(
       "faculty-conferences-list",
       "conferences-list-item",
       currentProfile.conferences_list
     );
-    setLinkField(
+    setLink(
       "faculty-au-supervisor-letter",
       "au-supervisor-letter-item",
       currentProfile.au_supervisor_letter
     );
-    setLinkField(
+    setLink(
       "faculty-fdp-workshops-webinars",
       "fdp-workshops-webinars-item",
       currentProfile.fdp_workshops_webinars
     );
-    setLinkField(
+    setLink(
       "faculty-nptel-coursera",
       "nptel-coursera-item",
       currentProfile.nptel_coursera
     );
-    setLinkField(
+    setLink(
       "faculty-invited-talks",
       "invited-talks-item",
       currentProfile.invited_talks
     );
-    setLinkField(
+    setLink(
       "faculty-projects-sanction",
       "projects-sanction-item",
       currentProfile.projects_sanction
     );
-    setLinkField(
+    setLink(
       "faculty-consultancy",
       "consultancy-item",
       currentProfile.consultancy
     );
-    setLinkField("faculty-patent", "patent-item", currentProfile.patent);
-    setLinkField(
+    setLink("faculty-patent", "patent-item", currentProfile.patent);
+    setLink(
       "faculty-community-cert",
       "community-cert-item",
       currentProfile.community_cert
     );
-    setLinkField("faculty-aadhar", "aadhar-item", currentProfile.aadhar);
-    setLinkField("faculty-pan", "pan-item", currentProfile.pan);
+    setLink("faculty-aadhar", "aadhar-item", currentProfile.aadhar);
+    setLink("faculty-pan", "pan-item", currentProfile.pan);
 
-    // Show edit button only if current user owns the profile or is a manager
     if (
       currentUser &&
-      (currentUser.profileId == facultyId || currentUser.role === "manager")
+      (currentUser.id === String(currentProfile.user_id) ||
+        currentUser.role === "manager")
     ) {
+      console.log(
+        "[loadFacultyProfile] Showing edit button for:",
+        currentUser.id
+      );
       elements.editBtn.classList.remove("hidden");
     } else {
       elements.editBtn.classList.add("hidden");
     }
   } catch (err) {
-    showToast("Failed to load faculty profile: " + err.message, "error");
-    console.error("Profile fetch error:", err);
-    if (elements.facultyPic)
-      elements.facultyPic.src = "https://via.placeholder.com/150";
+    showToast("Failed to load profile: " + err.message, "error");
+    console.error("[loadFacultyProfile] Error:", err);
     if (elements.facultyName)
-      elements.facultyName.textContent = "Profile Not Found";
-    hideAllFieldsOnError();
+      elements.facultyName.textContent = "Profile Load Error";
+    hideAllFields();
   }
 }
 
-// Helper Functions for Hiding Fields
-function setTextField(elementId, itemId, value) {
+// Field Helpers
+function setField(elementId, itemId, value) {
   const element = document.getElementById(elementId);
   const item = document.getElementById(itemId);
   if (element && item) {
-    if (value && value.trim() !== "") {
+    if (value && value.trim()) {
       element.textContent = value;
       item.classList.remove("hidden");
     } else {
@@ -341,11 +389,11 @@ function setTextField(elementId, itemId, value) {
   }
 }
 
-function setLinkField(elementId, itemId, value) {
+function setLink(elementId, itemId, value) {
   const element = document.getElementById(elementId);
   const item = document.getElementById(itemId);
   if (element && item) {
-    if (value && value.trim() !== "") {
+    if (value && value.trim()) {
       element.href = `${API_URL}${value}`;
       element.textContent = "Download";
       item.classList.remove("hidden");
@@ -355,7 +403,7 @@ function setLinkField(elementId, itemId, value) {
   }
 }
 
-function hideAllFieldsOnError() {
+function hideAllFields() {
   const fields = [
     "bio-item",
     "research-item",
@@ -390,16 +438,19 @@ function hideAllFieldsOnError() {
 // Edit Profile
 if (elements.editBtn) {
   elements.editBtn.addEventListener("click", () => {
+    console.log("[editBtn] Clicked, user:", currentUser);
     if (!currentUser) {
-      showToast("Please login to edit this profile", "error");
+      showToast("Please log in to edit", "error");
       elements.loginModal.classList.remove("hidden");
       return;
     }
-    if (currentUser.profileId != facultyId && currentUser.role !== "manager") {
-      showToast("Unauthorized: You can only edit your own profile", "error");
+    if (
+      currentUser.id !== String(currentProfile.user_id) &&
+      currentUser.role !== "manager"
+    ) {
+      showToast("Unauthorized to edit this profile", "error");
       return;
     }
-    if (!currentProfile) return showToast("No profile data available", "error");
     elements.editModal.classList.remove("hidden");
     elements.editTitle.innerHTML = `<i class="fas fa-user-edit"></i> Edit Faculty Profile`;
     elements.profileForm.id.value = facultyId;
@@ -436,17 +487,20 @@ if (elements.editBtn) {
 if (elements.profileForm) {
   elements.profileForm.addEventListener("submit", async (e) => {
     e.preventDefault();
+    console.log("[profileForm] Submitting, user:", currentUser);
     if (!currentUser) {
-      showToast("Please login to save changes", "error");
+      showToast("Please log in to save", "error");
       elements.loginModal.classList.remove("hidden");
       return;
     }
-    if (currentUser.profileId != facultyId && currentUser.role !== "manager") {
-      showToast("Unauthorized: You can only edit your own profile", "error");
+    if (
+      currentUser.id !== String(currentProfile.user_id) &&
+      currentUser.role !== "manager"
+    ) {
+      showToast("Unauthorized to edit this profile", "error");
       return;
     }
     const formData = new FormData(elements.profileForm);
-    console.log("Sending update request:", Array.from(formData.entries()));
     try {
       const res = await fetch(`${API_URL}/profiles/${facultyId}`, {
         method: "PUT",
@@ -454,95 +508,71 @@ if (elements.profileForm) {
         body: formData,
       });
       const data = await res.json();
-      console.log("Update response:", data);
+      console.log("[profileForm] Response:", JSON.stringify(data, null, 2));
       if (data.success) {
         elements.editModal.classList.add("hidden");
         currentProfile = data.profile;
-        loadFacultyProfile();
-        showToast(`Faculty profile updated: ${formData.get("name")}`);
+        await loadFacultyProfile();
+        showToast(`Profile updated: ${formData.get("name")}`);
       } else {
-        showToast(`Failed to update faculty: ${data.message}`, "error");
+        showToast(
+          "Update failed: " + (data.message || "Unknown error"),
+          "error"
+        );
       }
     } catch (err) {
-      showToast("Server error during update: " + err.message, "error");
-      console.error(err);
+      showToast("Update error: " + err.message, "error");
+      console.error("[profileForm] Error:", err);
     }
   });
 }
 
 if (elements.closeEdit) {
-  elements.closeEdit.addEventListener("click", () =>
-    elements.editModal.classList.add("hidden")
-  );
+  elements.closeEdit.addEventListener("click", () => {
+    console.log("[closeEdit] Closing modal");
+    elements.editModal.classList.add("hidden");
+  });
 }
 
 // Export to PDF
 if (elements.exportPdf) {
   elements.exportPdf.addEventListener("click", () => {
+    console.log("[exportPdf] Exporting profile:", currentProfile);
     if (!currentProfile) {
-      showToast("No faculty profile data available for export", "error");
+      showToast("No profile data to export", "error");
       return;
     }
     const doc = new jsPDF();
-
-    // Title
     doc.setFontSize(18);
     doc.text("SSN IT Faculty Profile", 105, 20, { align: "center" });
-
-    // Content (only include fields that exist)
     doc.setFontSize(12);
-    const content = [];
-    if (currentProfile.name) content.push(`Name: ${currentProfile.name}`);
-    if (currentProfile.department)
-      content.push(`Department: ${currentProfile.department}`);
-    if (currentProfile.bio) content.push(`Bio: ${currentProfile.bio}`);
-    if (currentProfile.qualifications)
-      content.push(`Qualifications: ${currentProfile.qualifications}`);
-    if (currentProfile.experience)
-      content.push(`Experience: ${currentProfile.experience}`);
-    if (currentProfile.research)
-      content.push(`Research Interests: ${currentProfile.research}`);
-    if (currentProfile.tenth_cert)
-      content.push(`10th Certificate: ${currentProfile.tenth_cert}`);
-    if (currentProfile.twelfth_cert)
-      content.push(`12th Certificate: ${currentProfile.twelfth_cert}`);
-    if (currentProfile.appointment_order)
-      content.push(`Appointment Order: ${currentProfile.appointment_order}`);
-    if (currentProfile.joining_report)
-      content.push(`Joining Report: ${currentProfile.joining_report}`);
-    if (currentProfile.ug_degree)
-      content.push(`UG Degree Certificate: ${currentProfile.ug_degree}`);
-    if (currentProfile.pg_ms_consolidated)
-      content.push(`Consolidated PG MS: ${currentProfile.pg_ms_consolidated}`);
-    if (currentProfile.phd_degree)
-      content.push(`PhD Degree Certificate: ${currentProfile.phd_degree}`);
-    if (currentProfile.journals_list)
-      content.push(`List of Journals: ${currentProfile.journals_list}`);
-    if (currentProfile.conferences_list)
-      content.push(`List of Conferences: ${currentProfile.conferences_list}`);
-    if (currentProfile.au_supervisor_letter)
-      content.push(
-        `AU Supervisor Recognition Letter: ${currentProfile.au_supervisor_letter}`
-      );
-    if (currentProfile.fdp_workshops_webinars)
-      content.push(
-        `FDP/Workshops/Webinars: ${currentProfile.fdp_workshops_webinars}`
-      );
-    if (currentProfile.nptel_coursera)
-      content.push(`NPTEL/Coursera Courses: ${currentProfile.nptel_coursera}`);
-    if (currentProfile.invited_talks)
-      content.push(`Invited Talks: ${currentProfile.invited_talks}`);
-    if (currentProfile.projects_sanction)
-      content.push(
-        `Projects Sanction Order: ${currentProfile.projects_sanction}`
-      );
-    if (currentProfile.consultancy)
-      content.push(`Consultancy: ${currentProfile.consultancy}`);
-    if (currentProfile.patent) content.push(`Patent: ${currentProfile.patent}`);
-    if (currentProfile.community_cert)
-      content.push(`Community Certificate: ${currentProfile.community_cert}`);
-    if (currentProfile.aadhar) content.push(`Aadhar: ${currentProfile.aadhar}`);
-    if (currentProfile.pan) content.push(`PAN: ${currentProfile.pan}`);
+    const content = [
+      `Name: ${currentProfile.name || ""}`,
+      `Department: ${currentProfile.department || ""}`,
+      `Bio: ${currentProfile.bio || ""}`,
+      `Qualifications: ${currentProfile.qualifications || ""}`,
+      `Experience: ${currentProfile.experience || ""}`,
+      `Research Interests: ${currentProfile.research || ""}`,
+      `10th Certificate: ${currentProfile.tenth_cert || ""}`,
+      `12th Certificate: ${currentProfile.twelfth_cert || ""}`,
+      `Appointment Order: ${currentProfile.appointment_order || ""}`,
+      `Joining Report: ${currentProfile.joining_report || ""}`,
+      `UG Degree: ${currentProfile.ug_degree || ""}`,
+      `PG MS: ${currentProfile.pg_ms_consolidated || ""}`,
+      `PhD Degree: ${currentProfile.phd_degree || ""}`,
+      `Journals: ${currentProfile.journals_list || ""}`,
+      `Conferences: ${currentProfile.conferences_list || ""}`,
+      `AU Supervisor Letter: ${currentProfile.au_supervisor_letter || ""}`,
+      `FDP/Workshops: ${currentProfile.fdp_workshops_webinars || ""}`,
+      `NPTEL/Coursera: ${currentProfile.nptel_coursera || ""}`,
+      `Invited Talks: ${currentProfile.invited_talks || ""}`,
+      `Projects Sanction: ${currentProfile.projects_sanction || ""}`,
+      `Consultancy: ${currentProfile.consultancy || ""}`,
+      `Patent: ${currentProfile.patent || ""}`,
+      `Community Cert: ${currentProfile.community_cert || ""}`,
+      `Aadhar: ${currentProfile.aadhar || ""}`,
+      `PAN: ${currentProfile.pan || ""}`,
+    ].filter((line) => !line.endsWith(": "));
 
     let y = 40;
     content.forEach((line) => {
@@ -561,17 +591,46 @@ if (elements.exportPdf) {
 // Back Button
 if (elements.backBtn) {
   elements.backBtn.addEventListener("click", () => {
+    console.log("[backBtn] Navigating to /index.html, user:", currentUser);
     window.location.href = "/index.html";
   });
 }
 
-// Initial Load with Token Validation
+// Initialize
 async function initialize() {
+  console.log("[initialize] Starting on:", window.location.pathname);
   const token = localStorage.getItem("token");
+  console.log(
+    "[initialize] Token:",
+    token ? token.substring(0, 10) + "..." : "No token"
+  );
+
+  elements.userStatus.innerHTML = token
+    ? `<i class="fas fa-user"></i> Loading...`
+    : "";
+
   if (token) {
-    await fetchCurrentUser(); // Fetch full user details
+    console.log("[initialize] Validating token...");
+    const user = await validateToken(token);
+    if (user && user.id && user.email && user.role) {
+      currentUser = user;
+      console.log("[initialize] User set:", currentUser);
+    } else {
+      console.log("[initialize] Validation failed, clearing session");
+      currentUser = null;
+      localStorage.removeItem("token");
+      localStorage.removeItem("email");
+      showToast("Invalid session, please log in again", "error");
+    }
+  } else {
+    console.log("[initialize] No token, user is null");
+    currentUser = null;
   }
-  loadFacultyProfile();
+
+  updateUI();
+  console.log("[initialize] Final state:", currentUser);
+  await loadFacultyProfile();
+  console.log("[initialize] Done");
 }
 
 initialize();
