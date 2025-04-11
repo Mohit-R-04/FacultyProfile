@@ -233,7 +233,7 @@ function classifyRole(bio) {
     return "Associate Professor";
   } else if (lowerBio.includes("assistant professor")) {
     return "Assistant Professor";
-  } else if (lowerBio.includes("professor")) {
+  } else if (lowerBio.includes("professor") && !lowerBio.includes("associate") && !lowerBio.includes("assistant")) {
     return "Professor";
   }
   return "Assistant Professor"; // Default to Assistant Professor if no match
