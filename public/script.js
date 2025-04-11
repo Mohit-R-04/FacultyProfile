@@ -553,14 +553,14 @@ if (elements.resetFilters) {
 
 function filterProfiles() {
   const searchTerm = elements.searchBar.value.toLowerCase();
-  const role = elements.roleFilter.value.toLowerCase();
+  const role = elements.roleFilter.value;
   const filtered = profiles.filter((profile) => {
     const matchesSearch =
       profile.name.toLowerCase().includes(searchTerm) ||
       (profile.bio || "").toLowerCase().includes(searchTerm) ||
       (profile.qualifications || "").toLowerCase().includes(searchTerm) ||
       (profile.experience || "").toLowerCase().includes(searchTerm);
-    const matchesRole = role ? profile.role.toLowerCase().includes(role) : true;
+    const matchesRole = role ? profile.role === role : true;
     return matchesSearch && matchesRole;
   });
   renderProfiles(filtered);
