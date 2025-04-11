@@ -8,6 +8,7 @@ const elements = {
   themeToggle: document.getElementById("theme-toggle"),
   loginBtn: document.getElementById("login-btn"),
   logoutBtn: document.getElementById("logout-btn"),
+  researchFilter: document.getElementById("research-filter"),
   userStatus: document.getElementById("user-status"),
   loginModal: document.getElementById("login-modal"),
   loginForm: document.getElementById("login-form"),
@@ -543,10 +544,13 @@ if (elements.searchBar)
   elements.searchBar.addEventListener("input", filterProfiles);
 if (elements.roleFilter)
   elements.roleFilter.addEventListener("change", filterProfiles);
+if (elements.researchFilter)
+  elements.researchFilter.addEventListener("change", filterProfiles);
 if (elements.resetFilters) {
   elements.resetFilters.addEventListener("click", () => {
     elements.searchBar.value = "";
     elements.roleFilter.value = "";
+    elements.researchFilter.value = "";
     renderProfiles(profiles);
   });
 }
@@ -554,6 +558,8 @@ if (elements.resetFilters) {
 function filterProfiles() {
   const searchTerm = elements.searchBar.value.toLowerCase();
   const role = elements.roleFilter.value;
+  const researchDomain = elements.researchFilter.value.toLowerCase();
+  
   const filtered = profiles.filter((profile) => {
     const matchesSearch =
       profile.name.toLowerCase().includes(searchTerm) ||
@@ -561,7 +567,10 @@ function filterProfiles() {
       (profile.qualifications || "").toLowerCase().includes(searchTerm) ||
       (profile.experience || "").toLowerCase().includes(searchTerm);
     const matchesRole = role ? profile.role === role : true;
-    return matchesSearch && matchesRole;
+    const matchesResearch = researchDomain ? 
+      (profile.research || "").toLowerCase().includes(researchDomain) : true;
+    
+    return matchesSearch && matchesRole && matchesResearch;
   });
   renderProfiles(filtered);
 }
