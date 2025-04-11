@@ -53,6 +53,7 @@ db.serialize(async () => {
       user_id INTEGER NOT NULL UNIQUE,
       name TEXT NOT NULL,
       department TEXT NOT NULL DEFAULT 'IT',
+      role TEXT NOT NULL DEFAULT 'Assistant Professor',
       bio TEXT,
       profile_pic TEXT,
       qualifications TEXT,

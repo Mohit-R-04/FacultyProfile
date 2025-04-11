@@ -538,6 +538,21 @@ body.dark-theme .faculty-detail-item i {
   color: #66b3ff;
 }
 
+.filter-dropdown {
+  padding: 8px;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+  background: white;
+  margin-right: 10px;
+  font-size: 14px;
+}
+
+body.dark-theme .filter-dropdown {
+  background: #2d2d2d;
+  color: #fff;
+  border-color: #444;
+}
+
 .faculty-actions {
   display: flex;
   justify-content: center;

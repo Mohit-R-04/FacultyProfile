@@ -226,12 +226,29 @@ if (elements.forgotPasswordForm) {
   });
 }
 
+// Role Classification Function
+function classifyRole(bio) {
+  const lowerBio = (bio || "").toLowerCase();
+  if (lowerBio.includes("professor") && !lowerBio.includes("assistant") && !lowerBio.includes("associate")) {
+    return "Professor";
+  } else if (lowerBio.includes("associate professor")) {
+    return "Associate Professor";
+  } else if (lowerBio.includes("assistant professor")) {
+    return "Assistant Professor";
+  }
+  return "Assistant Professor"; // Default to Assistant Professor if no match
+}
+
+
 // Load Profiles (Public Access)
 async function loadProfiles() {
   try {
     const res = await fetch(`${API_URL}/profiles`, { cache: "no-store" });
     if (!res.ok) throw new Error("Failed to fetch profiles");
     profiles = await res.json();
+    profiles.forEach(profile => {
+      profile.role = classifyRole(profile.bio);
+    });
     console.log("Fetched profiles:", profiles);
     renderProfiles(profiles);
   } catch (err) {
@@ -262,7 +279,7 @@ function renderProfiles(profileList) {
       <p>${
         profile.bio ? profile.bio.substring(0, 50) + "..." : "No bio available"
       }</p>
-      <button class="btn glassy-btn btn-primary" onclick="window.location.href='faculty-profile.html?id=${
+      <p><strong>Role:</strong> ${profile.role}</p> <button class="btn glassy-btn btn-primary" onclick="window.location.href='faculty-profile.html?id=${
         profile.id
       }'">
         View Profile
@@ -289,6 +306,9 @@ async function loadAdminProfiles() {
     });
     if (!res.ok) throw new Error("Failed to fetch profiles");
     profiles = await res.json();
+    profiles.forEach(profile => {
+      profile.role = classifyRole(profile.bio);
+    });
     console.log("Fetched admin profiles:", profiles);
     elements.totalStaff.textContent = profiles.length;
     renderAdminProfiles(profiles);
@@ -319,6 +339,7 @@ function renderAdminProfiles(profileList) {
       <p>${
         profile.bio ? profile.bio.substring(0, 50) + "..." : "No bio available"
       }</p>
+      <p><strong>Role:</strong> ${profile.role}</p>
       <div class="profile-actions">
         <button class="btn glassy-btn btn-primary" onclick="viewProfile(${
           profile.id
@@ -517,7 +538,7 @@ if (elements.closeEdit) {
   });
 }
 
-// Filter Profiles (unchanged)
+// Filter Profiles
 if (elements.searchBar)
   elements.searchBar.addEventListener("input", filterProfiles);
 if (elements.roleFilter)
@@ -539,16 +560,18 @@ function filterProfiles() {
       (profile.bio || "").toLowerCase().includes(searchTerm) ||
       (profile.qualifications || "").toLowerCase().includes(searchTerm) ||
       (profile.experience || "").toLowerCase().includes(searchTerm);
-    const matchesRole = role
-      ? (profile.experience || "").toLowerCase().includes(role) ||
-        (profile.bio || "").toLowerCase().includes(role)
-      : true;
+    const matchesRole = role ? profile.role.toLowerCase().includes(role) : true;
     return matchesSearch && matchesRole;
   });
   renderProfiles(filtered);
 }
 
-// Initial Load
+// Role Filter
+if (document.getElementById('role-filter')) {
+  document.getElementById('role-filter').addEventListener('change', filterProfiles);
+}
+
+// Initialize
 async function initialize() {
   const token = localStorage.getItem("token");
   if (token) {
@@ -565,6 +588,9 @@ async function initialize() {
           });
           if (!res.ok) throw new Error("Failed to fetch profiles");
           profiles = await res.json();
+          profiles.forEach(profile => {
+            profile.role = classifyRole(profile.bio);
+          });
           elements.loginBtn.classList.add("hidden");
           elements.logoutBtn.classList.remove("hidden");
           elements.userStatus.innerHTML = `<i class="fas fa-user"></i> ${currentUser.email} <span class="role-tag">${currentUser.role}</span>`;
