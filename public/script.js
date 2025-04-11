@@ -229,12 +229,12 @@ if (elements.forgotPasswordForm) {
 // Role Classification Function
 function classifyRole(bio) {
   const lowerBio = (bio || "").toLowerCase();
-  if (lowerBio.includes("professor") && !lowerBio.includes("assistant") && !lowerBio.includes("associate")) {
-    return "Professor";
-  } else if (lowerBio.includes("associate professor")) {
+  if (lowerBio.includes("associate professor")) {
     return "Associate Professor";
   } else if (lowerBio.includes("assistant professor")) {
     return "Assistant Professor";
+  } else if (lowerBio.includes("professor")) {
+    return "Professor";
   }
   return "Assistant Professor"; // Default to Assistant Professor if no match
 }
