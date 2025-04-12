@@ -748,6 +748,27 @@ app.put(
   }
 );
 
+// Lock/Unlock All Profiles
+app.post("/profiles/lock-all", authenticateToken, async (req, res) => {
+  if (req.user.role !== "manager") {
+    return res.status(403).json({ success: false, message: "Manager access required" });
+  }
+
+  const { lock } = req.body;
+  try {
+    const expiry = new Date();
+    expiry.setHours(expiry.getHours() + 24);
+    await runQuery(
+      "UPDATE profiles SET is_locked = ?, lock_expiry = ? WHERE 1",
+      [lock ? 1 : 0, lock ? expiry.toISOString() : null]
+    );
+    res.json({ success: true, message: `All profiles ${lock ? 'locked' : 'unlocked'} successfully` });
+  } catch (err) {
+    console.error("Lock/unlock all error:", err);
+    res.status(500).json({ success: false, message: "Server error: " + err.message });
+  }
+});
+
 // Lock/Unlock Profile
 app.post("/profiles/:id/lock", authenticateToken, async (req, res) => {
   if (req.user.role !== "manager") {

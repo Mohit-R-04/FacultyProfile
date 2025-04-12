@@ -312,10 +312,47 @@ async function loadAdminProfiles() {
     });
     console.log("Fetched admin profiles:", profiles);
     elements.totalStaff.textContent = profiles.length;
+
+    // Add Lock All button if not exists
+    let lockAllBtn = document.getElementById('lock-all-btn');
+    if (!lockAllBtn) {
+      lockAllBtn = document.createElement('button');
+      lockAllBtn.id = 'lock-all-btn';
+      lockAllBtn.className = 'btn glassy-btn btn-warning';
+      elements.totalStaff.parentNode.appendChild(lockAllBtn);
+    }
+
+    // Check if any profiles are unlocked
+    const hasUnlockedProfiles = profiles.some(p => !p.is_locked);
+    lockAllBtn.textContent = hasUnlockedProfiles ? 'Lock All Profiles' : 'Unlock All Profiles';
+    lockAllBtn.onclick = () => toggleAllProfiles(hasUnlockedProfiles);
+
     renderAdminProfiles(profiles);
   } catch (err) {
     showToast("Failed to load admin profiles: " + err.message, "error");
     console.error(err);
+  }
+}
+
+async function toggleAllProfiles(lock) {
+  try {
+    const res = await fetch(`${API_URL}/profiles/lock-all`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      },
+      body: JSON.stringify({ lock })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(`All profiles ${lock ? 'locked' : 'unlocked'} successfully`);
+      loadAdminProfiles();
+    } else {
+      showToast(data.message, 'error');
+    }
+  } catch (err) {
+    showToast(err.message, 'error');
   }
 }
 
