@@ -81,56 +81,9 @@ db.serialize(async () => {
       is_locked BOOLEAN DEFAULT FALSE,
       lock_expiry TEXT,
       edit_requested BOOLEAN DEFAULT FALSE,
-      request_status TEXT DEFAULT NULL,
+      request_status TEXT,
       FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
     )
-  `);
-
-  // Add request_status column if it doesn't exist
-  db.run(`
-    PRAGMA foreign_keys=off;
-    BEGIN TRANSACTION;
-    CREATE TABLE IF NOT EXISTS profiles_new (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER NOT NULL UNIQUE,
-      name TEXT NOT NULL,
-      department TEXT NOT NULL DEFAULT 'IT',
-      role TEXT NOT NULL DEFAULT 'Assistant Professor',
-      bio TEXT,
-      profile_pic TEXT,
-      qualifications TEXT,
-      experience TEXT,
-      research TEXT,
-      tenth_cert TEXT,
-      twelfth_cert TEXT,
-      appointment_order TEXT,
-      joining_report TEXT,
-      ug_degree TEXT,
-      pg_ms_consolidated TEXT,
-      phd_degree TEXT,
-      journals_list TEXT,
-      conferences_list TEXT,
-      au_supervisor_letter TEXT,
-      fdp_workshops_webinars TEXT,
-      nptel_coursera TEXT,
-      invited_talks TEXT,
-      projects_sanction TEXT,
-      consultancy TEXT,
-      patent TEXT,
-      community_cert TEXT,
-      aadhar TEXT,
-      pan TEXT,
-      is_locked BOOLEAN DEFAULT FALSE,
-      lock_expiry TEXT,
-      edit_requested BOOLEAN DEFAULT FALSE,
-      request_status TEXT DEFAULT NULL,
-      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
-    );
-    INSERT OR REPLACE INTO profiles_new SELECT * FROM profiles;
-    DROP TABLE profiles;
-    ALTER TABLE profiles_new RENAME TO profiles;
-    COMMIT;
-    PRAGMA foreign_keys=on;
   `);
 
   // Add request_status column if it doesn't exist (for existing databases)
