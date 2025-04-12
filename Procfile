@@ -1,1 +1,1 @@
-web: node server/server.js
+upm add expressweb: node server/server.js
