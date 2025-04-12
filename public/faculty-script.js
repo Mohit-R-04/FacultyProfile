@@ -600,10 +600,9 @@ if (elements.backBtn) {
 async function initialize() {
   console.log("[initialize] Starting on:", window.location.pathname);
   const token = localStorage.getItem("token");
-  console.log(
-    "[initialize] Token:",
-    token ? token.substring(0, 10) + "..." : "No token"
-  );
+  const savedUser = localStorage.getItem("currentUser");
+  
+  console.log("[initialize] Token:", token ? token.substring(0, 10) + "..." : "No token");
 
   if (token) {
     try {
@@ -618,35 +617,31 @@ async function initialize() {
           role: data.user.role
         };
         localStorage.setItem("currentUser", JSON.stringify(currentUser));
-        updateUI();
       } else {
         throw new Error("Failed to validate token");
       }
     } catch (err) {
       console.error("[initialize] Error:", err);
-      currentUser = null;
-      localStorage.removeItem("token");
-      localStorage.removeItem("currentUser");
-      updateUI();
-    }
-  } else {
-    // Try to restore from localStorage if token is missing
-    const savedUser = localStorage.getItem("currentUser");
-    if (savedUser) {
-      try {
-        currentUser = JSON.parse(savedUser);
-        updateUI();
-      } catch (err) {
-        console.error("[initialize] Error restoring user:", err);
-        localStorage.removeItem("currentUser");
-        updateUI();
+      if (savedUser) {
+        try {
+          currentUser = JSON.parse(savedUser);
+        } catch (parseErr) {
+          currentUser = null;
+          localStorage.removeItem("currentUser");
+        }
       }
-    } else {
+    }
+  } else if (savedUser) {
+    try {
+      currentUser = JSON.parse(savedUser);
+    } catch (err) {
+      console.error("[initialize] Error restoring user:", err);
       currentUser = null;
-      updateUI();
+      localStorage.removeItem("currentUser");
     }
   }
 
+  updateUI();
   console.log("[initialize] Final state:", currentUser);
   await loadFacultyProfile();
   console.log("[initialize] Done");
