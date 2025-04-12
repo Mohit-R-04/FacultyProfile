@@ -85,11 +85,6 @@ db.serialize(async () => {
     )
   `);
 
-  // Add missing columns
-  db.run(`ALTER TABLE profiles ADD COLUMN is_locked BOOLEAN DEFAULT FALSE`);
-  db.run(`ALTER TABLE profiles ADD COLUMN lock_expiry TEXT`);
-  db.run(`ALTER TABLE profiles ADD COLUMN edit_requested BOOLEAN DEFAULT FALSE`);
-
   const userCount = await new Promise((resolve) => {
     db.get("SELECT COUNT(*) as count FROM users", (err, row) => {
       if (err) {
