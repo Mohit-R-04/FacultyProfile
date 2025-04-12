@@ -182,6 +182,9 @@ if (elements.loginForm) {
           loadProfiles();
         }
         showToast(`Welcome, ${currentUser.email}!`);
+        elements.loginForm.email.value = '';
+        elements.loginForm.password.value = '';
+
       } else {
         showToast("Login failed: " + data.message, "error");
       }
