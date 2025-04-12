@@ -102,6 +102,9 @@
             <button id="add-staff-btn" class="btn glassy-btn btn-primary">
               <i class="fas fa-plus"></i> Add IT Faculty
             </button>
+            <button id="view-requests-btn" class="btn glassy-btn btn-info">
+              <i class="fas fa-bell"></i> View Edit Requests
+            </button>
           </div>
           <div class="stats-container">
             <div class="stat-card glassy">
@@ -510,6 +513,19 @@
             </button>
           </div>
         </form>
+      </div>
+    </div>
+
+    <!-- Requests Modal -->
+    <div id="requests-modal" class="modal hidden">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2><i class="fas fa-bell"></i> Edit Requests</h2>
+          <button id="close-requests" class="close-btn">&times;</button>
+        </div>
+        <div id="requests-list" class="requests-list">
+          <!-- Requests will be loaded here -->
+        </div>
       </div>
     </div>
 

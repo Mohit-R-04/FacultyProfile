@@ -701,7 +701,41 @@ body.dark-theme .textarea {
   justify-content: flex-end;
 }
 
-/* Toast Notifications */
+/* Request card styles */
+.requests-list {
+  padding: 1rem;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.request-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+}
+
+.request-info {
+  flex: 1;
+}
+
+.request-info h4 {
+  margin: 0 0 0.5rem 0;
+}
+
+.request-info p {
+  margin: 0.25rem 0;
+}
+
+.request-actions {
+  margin-left: 1rem;
+}
+
+/* Toast styles */
 .toast-container {
   position: fixed;
   bottom: 2%;

@@ -7,6 +7,10 @@ const { jsPDF } = window.jspdf;
 const elements = {
   themeToggle: document.getElementById("theme-toggle"),
   loginBtn: document.getElementById("login-btn"),
+  viewRequestsBtn: document.getElementById("view-requests-btn"),
+  requestsModal: document.getElementById("requests-modal"),
+  closeRequests: document.getElementById("close-requests"),
+  requestsList: document.getElementById("requests-list"),
   logoutBtn: document.getElementById("logout-btn"),
   researchFilter: document.getElementById("research-filter"),
   userStatus: document.getElementById("user-status"),
@@ -578,6 +582,47 @@ if (elements.profileForm) {
 }
 
 // Add Staff (Manager Only)
+async function loadEditRequests() {
+  const requestedProfiles = profiles.filter(p => p.edit_requested);
+  elements.requestsList.innerHTML = '';
+  
+  if (requestedProfiles.length === 0) {
+    elements.requestsList.innerHTML = '<p class="text-center">No pending edit requests</p>';
+    return;
+  }
+
+  requestedProfiles.forEach(profile => {
+    const requestCard = document.createElement('div');
+    requestCard.className = 'request-card glassy';
+    requestCard.innerHTML = `
+      <div class="request-info">
+        <h4>${profile.name}</h4>
+        <p>Department: ${profile.department}</p>
+        <p>Role: ${profile.role}</p>
+      </div>
+      <div class="request-actions">
+        <button class="btn glassy-btn btn-success" onclick="approveEdit(${profile.id})">
+          Unlock Profile
+        </button>
+      </div>
+    `;
+    elements.requestsList.appendChild(requestCard);
+  });
+}
+
+if (elements.viewRequestsBtn) {
+  elements.viewRequestsBtn.addEventListener("click", () => {
+    elements.requestsModal.classList.remove("hidden");
+    loadEditRequests();
+  });
+}
+
+if (elements.closeRequests) {
+  elements.closeRequests.addEventListener("click", () => {
+    elements.requestsModal.classList.add("hidden");
+  });
+}
+
 if (elements.addStaffBtn) {
   elements.addStaffBtn.addEventListener("click", async () => {
     if (!(await checkToken())) return;
