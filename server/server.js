@@ -81,9 +81,18 @@ db.serialize(async () => {
       is_locked BOOLEAN DEFAULT FALSE,
       lock_expiry TEXT,
       edit_requested BOOLEAN DEFAULT FALSE,
-      request_status TEXT,  -- Added request_status column
+      request_status TEXT,
       FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
     )
+  `);
+
+  // Add request_status column if it doesn't exist (for existing databases)
+  db.run(`
+    PRAGMA foreign_keys=off;
+    BEGIN TRANSACTION;
+    ALTER TABLE profiles ADD COLUMN request_status TEXT;
+    COMMIT;
+    PRAGMA foreign_keys=on;
   `);
 
   const userCount = await new Promise((resolve) => {
@@ -425,7 +434,7 @@ app.post(
       const userId = userResult.lastID;
 
       const profileResult = await runQuery(
-        "INSERT INTO profiles (user_id, name, department, bio, profile_pic, qualifications, experience, research, tenth_cert, twelfth_cert, appointment_order, joining_report, ug_degree, pg_ms_consolidated, phd_degree, journals_list, conferences_list, au_supervisor_letter, fdp_workshops_webinars, nptel_coursera, invited_talks, projects_sanction, consultancy, patent, community_cert, aadhar, pan) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO profiles (user_id, name, department, bio, profile_pic, qualifications, experience, research, tenth_cert, twelfth_cert, appointment_order, joining_report, ug_degree, pg_ms_consolidated, phd_degree, journals_list, conferences_list, au_supervisor_letter, fdp_workshops_webinars, nptel_coursera, invited_talks, projects_sanction, consultancy, patent, community_cert, aadhar, pan, request_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         [
           userId,
           name,
@@ -454,6 +463,7 @@ app.post(
           communityCert || null,
           aadhar || null,
           pan || null,
+          null //request_status initially null
         ]
       );
       const newProfile = await getQuery("SELECT * FROM profiles WHERE id = ?", [
@@ -692,7 +702,7 @@ app.put(
           invited_talks = COALESCE(?, invited_talks), projects_sanction = COALESCE(?, projects_sanction),
           consultancy = COALESCE(?, consultancy), patent = COALESCE(?, patent),
           community_cert = COALESCE(?, community_cert), aadhar = COALESCE(?, aadhar),
-          pan = COALESCE(?, pan)
+          pan = COALESCE(?, pan), request_status = COALESCE(?, request_status)
         WHERE id = ?
       `;
       const params = [
@@ -721,6 +731,7 @@ app.put(
         communityCert,
         aadhar,
         pan,
+        null, //request_status
         id,
       ];
 
@@ -770,7 +781,7 @@ app.post("/profiles/:id/request-edit", authenticateToken, async (req, res) => {
   const { id } = req.params;
   try {
     await runQuery(
-      "UPDATE profiles SET edit_requested = TRUE WHERE id = ?",
+      "UPDATE profiles SET edit_requested = TRUE, request_status = 'pending' WHERE id = ?",
       [id]
     );
     res.json({ success: true, message: "Edit request submitted" });
@@ -827,8 +838,7 @@ app.post("/profiles/:id/lock", authenticateToken, async (req, res) => {
       );
     }
     res.json({ success: true, message: `Profile ${lock ? 'locked' : 'unlocked'} successfully` });
-  } catch (err) {
-    console.error("Lock/unlock error:", err);
+  } catch (err) {    console.error("Lock/unlock error:", err);
     res.status(500).json({ success: false, message: "Server error: " + err.message });
   }
 });
