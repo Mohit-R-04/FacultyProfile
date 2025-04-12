@@ -78,6 +78,8 @@ db.serialize(async () => {
       community_cert TEXT,
       aadhar TEXT,
       pan TEXT,
+      is_locked BOOLEAN DEFAULT FALSE,
+      lock_expiry TEXT,
       FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
     )
   `);
@@ -239,7 +241,7 @@ app.get("/me", authenticateToken, async (req, res) => {
         .json({ success: false, message: "User not found" });
     }
     const profile = await getQuery(
-      "SELECT id, name FROM profiles WHERE user_id = ?",
+      "SELECT id, name, is_locked, lock_expiry FROM profiles WHERE user_id = ?",
       [req.user.id]
     );
     console.log(`Fetched current user: ${req.user.email}`);
@@ -251,6 +253,8 @@ app.get("/me", authenticateToken, async (req, res) => {
         role: user.role,
         profileId: profile?.id || null,
         name: profile?.name || null,
+        is_locked: profile?.is_locked || false,
+        lock_expiry: profile?.lock_expiry || null,
       },
     });
   } catch (err) {
@@ -474,6 +478,38 @@ app.post(
 app.put(
   "/profiles/:id",
   authenticateToken,
+  async (req, res, next) => {
+    const { id } = req.params;
+
+    try {
+      const profile = await getQuery("SELECT * FROM profiles WHERE id = ?", [id]);
+      if (!profile) {
+        return res.status(404).json({ success: false, message: "Profile not found" });
+      }
+
+      if (profile.is_locked) {
+        const now = new Date();
+        const expiry = new Date(profile.lock_expiry);
+
+        if (now < expiry && req.user.role !== "manager") {
+          return res.status(403).json({ 
+            success: false, 
+            message: "Profile is locked. Please request edit access from admin."
+          });
+        }
+
+        if (now >= expiry) {
+          await runQuery(
+            "UPDATE profiles SET is_locked = TRUE, lock_expiry = NULL WHERE id = ?",
+            [id]
+          );
+        }
+      }
+      next();
+    } catch (err) {
+      res.status(500).json({ success: false, message: "Server error: " + err.message });
+    }
+  },
   upload.fields([
     { name: "profile_pic", maxCount: 1 },
     { name: "tenth_cert", maxCount: 1 },

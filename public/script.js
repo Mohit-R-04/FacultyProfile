@@ -319,6 +319,68 @@ async function loadAdminProfiles() {
   }
 }
 
+async function toggleLock(id, lock) {
+  try {
+    const res = await fetch(`${API_URL}/profiles/${id}/lock`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      },
+      body: JSON.stringify({ lock })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(`Profile ${lock ? 'locked' : 'unlocked'} successfully`);
+      loadAdminProfiles();
+    } else {
+      showToast(data.message, 'error');
+    }
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+async function requestEdit(id) {
+  try {
+    const res = await fetch(`${API_URL}/profiles/${id}/request-edit`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast('Edit request submitted successfully');
+      loadProfiles();
+    } else {
+      showToast(data.message, 'error');
+    }
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+async function approveEdit(id) {
+  try {
+    const res = await fetch(`${API_URL}/profiles/${id}/approve-edit`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast('Edit request approved');
+      loadAdminProfiles();
+    } else {
+      showToast(data.message, 'error');
+    }
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
 function renderAdminProfiles(profileList) {
   elements.adminProfiles.innerHTML = "";
   profileList.forEach((profile) => {
@@ -342,18 +404,26 @@ function renderAdminProfiles(profileList) {
       }</p>
       <p><strong>Role:</strong> ${profile.role}</p>
       <div class="profile-actions">
-        <button class="btn glassy-btn btn-primary" onclick="viewProfile(${
-          profile.id
-        })">View</button>
-        ${
-          canEdit
-            ? `<button class="btn glassy-btn btn-secondary" onclick="editProfile(${profile.id})">Edit</button>`
-            : ""
+        <button class="btn glassy-btn btn-primary" onclick="viewProfile(${profile.id})">View</button>
+        ${canEdit && (!profile.is_locked || currentUser.role === 'manager')
+          ? `<button class="btn glassy-btn btn-secondary" onclick="editProfile(${profile.id})">Edit</button>`
+          : ""
         }
-        ${
-          currentUser.role === "manager"
-            ? `<button class="btn glassy-btn btn-danger" onclick="deleteProfile(${profile.id})">Delete</button>`
-            : ""
+        ${currentUser.role === "manager"
+          ? `
+            <button class="btn glassy-btn ${profile.is_locked ? 'btn-success' : 'btn-warning'}" 
+              onclick="toggleLock(${profile.id}, ${!profile.is_locked})">
+              ${profile.is_locked ? 'Unlock' : 'Lock'}
+            </button>
+            <button class="btn glassy-btn btn-danger" onclick="deleteProfile(${profile.id})">Delete</button>
+            ${profile.edit_requested 
+              ? `<button class="btn glassy-btn btn-primary" onclick="approveEdit(${profile.id})">Approve Edit</button>`
+              : ''
+            }
+          `
+          : profile.is_locked
+          ? `<button class="btn glassy-btn btn-warning" onclick="requestEdit(${profile.id})">Request Edit</button>`
+          : ""
         }
       </div>
     `;
