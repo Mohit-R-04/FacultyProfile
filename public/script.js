@@ -585,7 +585,7 @@ if (elements.profileForm) {
 async function loadEditRequests() {
   const requestedProfiles = profiles.filter(p => p.edit_requested);
   elements.requestsList.innerHTML = '';
-  
+
   if (requestedProfiles.length === 0) {
     elements.requestsList.innerHTML = '<p class="text-center">No pending edit requests</p>';
     return;
