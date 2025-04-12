@@ -275,6 +275,19 @@ function renderProfiles(profileList) {
   profileList.forEach((profile) => {
     const card = document.createElement("div");
     card.className = "profile-card glassy";
+    const isOwnProfile = currentUser && 
+      currentUser.role === "staff" && 
+      String(profile.user_id) === currentUser.id;
+    
+    let editButton = '';
+    if (isOwnProfile) {
+      if (profile.is_locked) {
+        editButton = `<button class="btn glassy-btn btn-warning" onclick="requestEdit(${profile.id})">Request Edit</button>`;
+      } else {
+        editButton = `<button class="btn glassy-btn btn-secondary" onclick="editProfile(${profile.id})">Edit</button>`;
+      }
+    }
+
     card.innerHTML = `
       <img src="${
         profile.profile_pic
@@ -287,18 +300,13 @@ function renderProfiles(profileList) {
       <p>${
         profile.bio ? profile.bio.substring(0, 50) + "..." : "No bio available"
       }</p>
-      <p><strong>Role:</strong> ${profile.role}</p> <button class="btn glassy-btn btn-primary" onclick="window.location.href='faculty-profile.html?id=${
-        profile.id
-      }'">
-        View Profile
-      </button>
-      ${
-        currentUser &&
-        currentUser.role === "staff" &&
-        String(profile.user_id) === currentUser.id
-          ? `<button class="btn glassy-btn btn-secondary" onclick="editProfile(${profile.id})">Edit</button>`
-          : ""
-      }
+      <p><strong>Role:</strong> ${profile.role}</p>
+      <div class="profile-actions">
+        <button class="btn glassy-btn btn-primary" onclick="window.location.href='faculty-profile.html?id=${
+          profile.id
+        }'">View Profile</button>
+        ${editButton}
+      </div>
     `;
     elements.profileGrid.appendChild(card);
   });
