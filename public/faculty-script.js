@@ -612,45 +612,32 @@ async function initialize() {
       });
       const data = await response.json();
       if (data.success) {
-        currentUser = data.user;
-        currentUser.id = String(data.user.id);
+        currentUser = {
+          id: String(data.user.id),
+          email: data.user.email,
+          role: data.user.role
+        };
         elements.userStatus.innerHTML = `<i class="fas fa-user"></i> ${currentUser.email} <span class="role-tag">${currentUser.role}</span>`;
         elements.loginBtn.classList.add("hidden");
         elements.logoutBtn.classList.remove("hidden");
+      } else {
+        currentUser = null;
+        elements.userStatus.innerHTML = "";
+        elements.loginBtn.classList.remove("hidden");
+        elements.logoutBtn.classList.add("hidden");
       }
     } catch (err) {
       console.error("[initialize] Error:", err);
-      elements.userStatus.innerHTML = "";
-    }
-  } else {
-    elements.userStatus.innerHTML = "";
-  }
-
-  if (token) {
-    console.log("[initialize] Validating token...");
-    const userData = await fetchCurrentUser(token);
-    if (userData && userData.success && userData.user) {
-      currentUser = userData.user;
-      currentUser.id = String(userData.user.id);
-      console.log("[initialize] User set:", currentUser);
-      elements.loginBtn.classList.add("hidden");
-      elements.logoutBtn.classList.remove("hidden");
-      elements.userStatus.innerHTML = `<i class="fas fa-user"></i> ${currentUser.email} <span class="role-tag">${currentUser.role}</span>`;
-    } else {
-      console.log("[initialize] Validation failed, clearing session");
       currentUser = null;
-      localStorage.removeItem("token");
-      localStorage.removeItem("email");
+      elements.userStatus.innerHTML = "";
       elements.loginBtn.classList.remove("hidden");
       elements.logoutBtn.classList.add("hidden");
-      elements.userStatus.innerHTML = "";
     }
   } else {
-    console.log("[initialize] No token, user is null");
     currentUser = null;
+    elements.userStatus.innerHTML = "";
     elements.loginBtn.classList.remove("hidden");
     elements.logoutBtn.classList.add("hidden");
-    elements.userStatus.innerHTML = "";
   }
 
   console.log("[initialize] Final state:", currentUser);
