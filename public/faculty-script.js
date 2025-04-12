@@ -605,9 +605,26 @@ async function initialize() {
     token ? token.substring(0, 10) + "..." : "No token"
   );
 
-  elements.userStatus.innerHTML = token
-    ? `<i class="fas fa-user"></i> Loading...`
-    : "";
+  if (token) {
+    try {
+      const response = await fetch(`${API_URL}/me`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await response.json();
+      if (data.success) {
+        currentUser = data.user;
+        currentUser.id = String(data.user.id);
+        elements.userStatus.innerHTML = `<i class="fas fa-user"></i> ${currentUser.email} <span class="role-tag">${currentUser.role}</span>`;
+        elements.loginBtn.classList.add("hidden");
+        elements.logoutBtn.classList.remove("hidden");
+      }
+    } catch (err) {
+      console.error("[initialize] Error:", err);
+      elements.userStatus.innerHTML = "";
+    }
+  } else {
+    elements.userStatus.innerHTML = "";
+  }
 
   if (token) {
     console.log("[initialize] Validating token...");
