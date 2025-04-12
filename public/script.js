@@ -711,7 +711,11 @@ if (elements.resetFilters) {
     elements.searchBar.value = "";
     elements.roleFilter.value = "";
     elements.researchFilter.value = "";
-    renderProfiles(profiles);
+    if (currentUser && currentUser.role === "manager") {
+      loadAdminProfiles();
+    } else {
+      loadProfiles();
+    }
   });
 }
 
@@ -732,7 +736,12 @@ function filterProfiles() {
 
     return matchesSearch && matchesRole && matchesResearch;
   });
-  renderProfiles(filtered);
+
+  if (currentUser && currentUser.role === "manager") {
+    renderAdminProfiles(filtered);
+  } else {
+    renderProfiles(filtered);
+  }
 }
 
 // Role Filter
