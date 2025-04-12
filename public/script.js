@@ -442,24 +442,21 @@ function renderAdminProfiles(profileList) {
       <p><strong>Role:</strong> ${profile.role}</p>
       <div class="profile-actions">
         <button class="btn glassy-btn btn-primary" onclick="viewProfile(${profile.id})">View</button>
-        ${canEdit && (!profile.is_locked || currentUser.role === 'manager')
-          ? `<button class="btn glassy-btn btn-secondary" onclick="editProfile(${profile.id})">Edit</button>`
+        ${canEdit
+          ? profile.is_locked && currentUser.role !== 'manager'
+            ? `<button class="btn glassy-btn btn-warning" onclick="requestEdit(${profile.id})">Request Edit</button>`
+            : `<button class="btn glassy-btn btn-secondary" onclick="editProfile(${profile.id})">Edit</button>`
           : ""
         }
         ${currentUser.role === "manager"
           ? `
+            ${profile.edit_requested ? `<button class="btn glassy-btn btn-primary" onclick="approveEdit(${profile.id})">Approve Edit</button>` : ''}
             <button class="btn glassy-btn ${profile.is_locked ? 'btn-success' : 'btn-warning'}" 
               onclick="toggleLock(${profile.id}, ${!profile.is_locked})">
               ${profile.is_locked ? 'Unlock' : 'Lock'}
             </button>
             <button class="btn glassy-btn btn-danger" onclick="deleteProfile(${profile.id})">Delete</button>
-            ${profile.edit_requested 
-              ? `<button class="btn glassy-btn btn-primary" onclick="approveEdit(${profile.id})">Approve Edit</button>`
-              : ''
-            }
           `
-          : profile.is_locked
-          ? `<button class="btn glassy-btn btn-warning" onclick="requestEdit(${profile.id})">Request Edit</button>`
           : ""
         }
       </div>
@@ -666,7 +663,7 @@ function filterProfiles() {
   const searchTerm = elements.searchBar.value.toLowerCase();
   const role = elements.roleFilter.value;
   const researchDomain = elements.researchFilter.value.toLowerCase();
-  
+
   const filtered = profiles.filter((profile) => {
     const matchesSearch =
       profile.name.toLowerCase().includes(searchTerm) ||
@@ -676,7 +673,7 @@ function filterProfiles() {
     const matchesRole = role ? profile.role === role : true;
     const matchesResearch = researchDomain ? 
       (profile.research || "").toLowerCase().includes(researchDomain) : true;
-    
+
     return matchesSearch && matchesRole && matchesResearch;
   });
   renderProfiles(filtered);
