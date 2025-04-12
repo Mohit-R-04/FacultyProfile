@@ -802,7 +802,7 @@ app.post("/profiles/:id/approve-edit", authenticateToken, async (req, res) => {
     const expiry = new Date();
     expiry.setHours(expiry.getHours() + 24);
     await runQuery(
-      "UPDATE profiles SET is_locked = FALSE, edit_requested = TRUE, lock_expiry = ?, request_status = 'approved' WHERE id = ?",
+      "UPDATE profiles SET is_locked = FALSE, edit_requested = FALSE, lock_expiry = ? WHERE id = ?",
       [expiry.toISOString(), id]
     );
     res.json({ success: true, message: "Edit request approved" });
