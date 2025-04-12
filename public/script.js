@@ -605,16 +605,20 @@ async function loadEditRequests() {
   requestedProfiles.forEach(profile => {
     const requestCard = document.createElement('div');
     requestCard.className = 'request-card glassy';
+    const isApproved = profile.request_status === 'approved';
     requestCard.innerHTML = `
       <div class="request-info">
         <h4>${profile.name}</h4>
         <p>Department: ${profile.department}</p>
         <p>Role: ${profile.role}</p>
+        ${isApproved ? '<p class="status-approved">Request Approved</p>' : ''}
       </div>
       <div class="request-actions">
-        <button class="btn glassy-btn btn-success" onclick="approveEdit(${profile.id})">
-          Unlock Profile
-        </button>
+        ${!isApproved ? `
+          <button class="btn glassy-btn btn-success" onclick="approveEdit(${profile.id})">
+            Unlock Profile
+          </button>
+        ` : ''}
       </div>
     `;
     elements.requestsList.appendChild(requestCard);

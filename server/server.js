@@ -81,6 +81,7 @@ db.serialize(async () => {
       is_locked BOOLEAN DEFAULT FALSE,
       lock_expiry TEXT,
       edit_requested BOOLEAN DEFAULT FALSE,
+      request_status TEXT,  -- Added request_status column
       FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
     )
   `);
@@ -790,7 +791,7 @@ app.post("/profiles/:id/approve-edit", authenticateToken, async (req, res) => {
     const expiry = new Date();
     expiry.setHours(expiry.getHours() + 24);
     await runQuery(
-      "UPDATE profiles SET is_locked = FALSE, edit_requested = FALSE, lock_expiry = ? WHERE id = ?",
+      "UPDATE profiles SET is_locked = FALSE, edit_requested = TRUE, lock_expiry = ?, request_status = 'approved' WHERE id = ?",
       [expiry.toISOString(), id]
     );
     res.json({ success: true, message: "Edit request approved" });
@@ -832,41 +833,6 @@ app.post("/profiles/:id/lock", authenticateToken, async (req, res) => {
   }
 });
 
-// Edit Request
-app.post("/profiles/:id/request-edit", authenticateToken, async (req, res) => {
-  const { id } = req.params;
-  try {
-    await runQuery(
-      "UPDATE profiles SET edit_requested = TRUE WHERE id = ?",
-      [id]
-    );
-    res.json({ success: true, message: "Edit request submitted" });
-  } catch (err) {
-    console.error("Edit request error:", err);
-    res.status(500).json({ success: false, message: "Server error: " + err.message });
-  }
-});
-
-// Approve Edit
-app.post("/profiles/:id/approve-edit", authenticateToken, async (req, res) => {
-  if (req.user.role !== "manager") {
-    return res.status(403).json({ success: false, message: "Manager access required" });
-  }
-
-  const { id } = req.params;
-  try {
-    const expiry = new Date();
-    expiry.setHours(expiry.getHours() + 24);
-    await runQuery(
-      "UPDATE profiles SET is_locked = FALSE, edit_requested = FALSE, lock_expiry = ? WHERE id = ?",
-      [expiry.toISOString(), id]
-    );
-    res.json({ success: true, message: "Edit request approved" });
-  } catch (err) {
-    console.error("Approve edit error:", err);
-    res.status(500).json({ success: false, message: "Server error: " + err.message });
-  }
-});
 
 // Delete Profile (Manager Only)
 app.delete("/profiles/:id", authenticateToken, async (req, res) => {

@@ -735,6 +735,12 @@ body.dark-theme .textarea {
   margin-left: 1rem;
 }
 
+.status-approved {
+  color: #28a745;
+  font-weight: bold;
+  margin-top: 0.5rem;
+}
+
 /* Toast styles */
 .toast-container {
   position: fixed;
