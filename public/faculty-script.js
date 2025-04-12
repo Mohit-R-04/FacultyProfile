@@ -600,44 +600,33 @@ if (elements.backBtn) {
 async function initialize() {
   console.log("[initialize] Starting on:", window.location.pathname);
   const token = localStorage.getItem("token");
-  const savedUser = localStorage.getItem("currentUser");
+  const savedEmail = localStorage.getItem("email");
   
   console.log("[initialize] Token:", token ? token.substring(0, 10) + "..." : "No token");
+  console.log("[initialize] Saved email:", savedEmail);
 
-  if (token) {
+  currentUser = null;
+  
+  if (token && savedEmail) {
     try {
       const response = await fetch(`${API_URL}/me`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await response.json();
-      if (data.success) {
+      if (data.success && data.user && data.user.email === savedEmail) {
         currentUser = {
           id: String(data.user.id),
           email: data.user.email,
           role: data.user.role
         };
-        localStorage.setItem("currentUser", JSON.stringify(currentUser));
       } else {
-        throw new Error("Failed to validate token");
+        localStorage.removeItem("token");
+        localStorage.removeItem("email");
       }
     } catch (err) {
       console.error("[initialize] Error:", err);
-      if (savedUser) {
-        try {
-          currentUser = JSON.parse(savedUser);
-        } catch (parseErr) {
-          currentUser = null;
-          localStorage.removeItem("currentUser");
-        }
-      }
-    }
-  } else if (savedUser) {
-    try {
-      currentUser = JSON.parse(savedUser);
-    } catch (err) {
-      console.error("[initialize] Error restoring user:", err);
-      currentUser = null;
-      localStorage.removeItem("currentUser");
+      localStorage.removeItem("token");
+      localStorage.removeItem("email");
     }
   }
 
