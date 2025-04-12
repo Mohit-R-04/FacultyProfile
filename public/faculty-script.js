@@ -612,33 +612,22 @@ async function initialize() {
       });
       const data = await response.json();
       if (data.success) {
-        currentUser = {
-          id: String(data.user.id),
-          email: data.user.email,
-          role: data.user.role
-        };
-        updateUI();
-      } else {
-        currentUser = null;
-        localStorage.removeItem("token");
-        localStorage.removeItem("email");
-        updateUI();
+        currentUser = data.user;
+        currentUser.id = String(data.user.id);
+        elements.userStatus.innerHTML = `<i class="fas fa-user"></i> ${currentUser.email} <span class="role-tag">${currentUser.role}</span>`;
+        elements.loginBtn.classList.add("hidden");
+        elements.logoutBtn.classList.remove("hidden");
       }
     } catch (err) {
       console.error("[initialize] Error:", err);
-      currentUser = null;
-      localStorage.removeItem("token");
-      localStorage.removeItem("email");
-      updateUI();
+      elements.userStatus.innerHTML = "";
     }
   } else {
-    currentUser = null;
-    updateUI();
+    elements.userStatus.innerHTML = "";
   }
 
-  await loadFacultyProfile();
-  console.log("[initialize] Done");
-}
+  if (token) {
+    console.log("[initialize] Validating token...");
     const userData = await fetchCurrentUser(token);
     if (userData && userData.success && userData.user) {
       currentUser = userData.user;
