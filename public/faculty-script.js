@@ -611,26 +611,53 @@ async function initialize() {
 
   if (token) {
     console.log("[initialize] Validating token...");
-    const user = await validateToken(token);
-    if (user && user.id && user.email && user.role) {
-      currentUser = user;
+    const userData = await fetchCurrentUser(token);
+    if (userData && userData.success && userData.user) {
+      currentUser = userData.user;
+      currentUser.id = String(userData.user.id);
       console.log("[initialize] User set:", currentUser);
+      elements.loginBtn.classList.add("hidden");
+      elements.logoutBtn.classList.remove("hidden");
+      elements.userStatus.innerHTML = `<i class="fas fa-user"></i> ${currentUser.email} <span class="role-tag">${currentUser.role}</span>`;
     } else {
       console.log("[initialize] Validation failed, clearing session");
       currentUser = null;
       localStorage.removeItem("token");
       localStorage.removeItem("email");
-      showToast("Invalid session, please log in again", "error");
+      elements.loginBtn.classList.remove("hidden");
+      elements.logoutBtn.classList.add("hidden");
+      elements.userStatus.innerHTML = "";
     }
   } else {
     console.log("[initialize] No token, user is null");
     currentUser = null;
+    elements.loginBtn.classList.remove("hidden");
+    elements.logoutBtn.classList.add("hidden");
+    elements.userStatus.innerHTML = "";
   }
 
-  updateUI();
   console.log("[initialize] Final state:", currentUser);
   await loadFacultyProfile();
   console.log("[initialize] Done");
+}
+
+async function fetchCurrentUser(token) {
+  try {
+    const response = await fetch(`${API_URL}/me`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error("Error fetching current user:", error);
+    return null;
+  }
 }
 
 initialize();
