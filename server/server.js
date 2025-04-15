@@ -11,6 +11,14 @@ const nodemailer = require("nodemailer");
 const EMAIL_USER = process.env.EMAIL_USER || "ssnitfacultysystem@gmail.com";
 const EMAIL_PASS = process.env.EMAIL_PASS || "bbrl uydc tzwj uugh";
 
+// Validate email configuration
+if (!EMAIL_USER || !EMAIL_PASS) {
+  console.error(
+    "Email configuration is incomplete. Please check environment variables."
+  );
+  process.exit(1);
+}
+
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
@@ -29,8 +37,10 @@ const transporter = nodemailer.createTransport({
   debug: true, // Enable debug logs
 });
 
-// Function to clean up orphaned files
+// Function to clean up orphaned files with enhanced error handling
 const cleanupOrphanedFiles = async () => {
+  let filesDeleted = 0;
+  let errors = [];
   try {
     console.log("Running orphaned files cleanup...");
     const uploadedFiles = await fs.promises.readdir(uploadDir);
@@ -142,7 +152,7 @@ db.serialize(async () => {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       email TEXT UNIQUE NOT NULL,
       password TEXT NOT NULL,
-      phone_number TEXT UNIQUE NOT NULL,
+      phone_number TEXT,
       role TEXT NOT NULL CHECK(role IN ('staff', 'manager'))
     )
   `);
@@ -253,6 +263,53 @@ const runQuery = (query, params, callback) =>
       }
     });
   });
+
+// Helper function to delete file if it exists
+const deleteFileIfExists = async (filePath) => {
+  if (!filePath || !filePath.startsWith("/uploads/")) return;
+  const fullPath = path.join(__dirname, filePath);
+  try {
+    await fs.promises.access(fullPath);
+    await fs.promises.unlink(fullPath);
+    console.log(`Deleted file: ${filePath}`);
+  } catch (err) {
+    if (err.code !== "ENOENT") {
+      console.error(`Error deleting file ${filePath}:`, err);
+    }
+  }
+};
+
+// Helper function to delete all profile files
+const deleteProfileFiles = async (profile) => {
+  const fileFields = [
+    "profile_pic",
+    "tenth_cert",
+    "twelfth_cert",
+    "appointment_order",
+    "joining_report",
+    "ug_degree",
+    "pg_ms_consolidated",
+    "phd_degree",
+    "journals_list",
+    "conferences_list",
+    "au_supervisor_letter",
+    "fdp_workshops_webinars",
+    "nptel_coursera",
+    "invited_talks",
+    "projects_sanction",
+    "consultancy",
+    "patent",
+    "community_cert",
+    "aadhar",
+    "pan",
+  ];
+
+  for (const field of fileFields) {
+    if (profile[field]) {
+      await deleteFileIfExists(profile[field]);
+    }
+  }
+};
 
 const getQuery = (query, params) =>
   new Promise((resolve, reject) => {
@@ -399,6 +456,51 @@ app.get("/profiles/:id", async (req, res) => {
   }
 });
 
+// Delete Faculty Profile (Manager Only)
+app.delete("/profiles/:id", authenticateToken, async (req, res) => {
+  if (req.user.role !== "manager") {
+    return res
+      .status(403)
+      .json({ success: false, message: "Manager access required" });
+  }
+
+  const { id } = req.params;
+  try {
+    // Get profile before deletion to access file paths
+    const profile = await getQuery("SELECT * FROM profiles WHERE id = ?", [id]);
+    if (!profile) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Profile not found" });
+    }
+
+    // Get user_id for cascading delete
+    const user_id = profile.user_id;
+
+    // Delete all associated files with transaction-like behavior
+    try {
+      await deleteProfileFiles(profile);
+      // Delete user (will cascade to profile due to foreign key)
+      await runQuery("DELETE FROM users WHERE id = ?", [user_id]);
+    } catch (err) {
+      console.error("Error during profile deletion:", err);
+      // Attempt to recover any partially deleted files
+      throw new Error("Profile deletion failed: " + err.message);
+    }
+
+    console.log(`Deleted faculty profile ${id} and associated files`);
+    res.json({
+      success: true,
+      message: "Faculty profile deleted successfully",
+    });
+  } catch (err) {
+    console.error("Delete profile error:", err);
+    res
+      .status(500)
+      .json({ success: false, message: "Server error: " + err.message });
+  }
+});
+
 // Add Faculty (Manager Only)
 // Check if phone number exists
 async function isPhoneNumberTaken(phone_number) {
@@ -525,21 +627,20 @@ app.post(
 
     console.log("Adding faculty:", { email, phone_number, name, profilePic });
 
-    if (!email || !password || !phone_number || !name) {
+    if (!email || !password || !name) {
       console.log("Missing required fields:", {
         email,
         password,
-        phone_number,
         name,
       });
       return res.status(400).json({
         success: false,
-        message: "Email, password, phone number, and name are required",
+        message: "Email, password, and name are required",
       });
     }
 
     // Check if phone number is already taken
-    if (await isPhoneNumberTaken(phone_number)) {
+    if (phone_number && (await isPhoneNumberTaken(phone_number))) {
       console.log(`Phone number ${phone_number} is already registered`);
       return res.status(400).json({
         success: false,
@@ -1218,10 +1319,10 @@ app.delete("/profiles/:id", authenticateToken, async (req, res) => {
 // Reset Password
 app.post("/reset-password", async (req, res) => {
   const { phone_number, new_password } = req.body;
-  if (!phone_number || !new_password) {
+  if (!new_password) {
     return res.status(400).json({
       success: false,
-      message: "Phone number and new password required",
+      message: "New password is required",
     });
   }
   try {
