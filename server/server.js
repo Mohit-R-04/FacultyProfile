@@ -5,6 +5,105 @@ const multer = require("multer");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const fs = require("fs");
+const nodemailer = require("nodemailer");
+
+// Email Configuration
+const EMAIL_USER = process.env.EMAIL_USER || "ssnitfacultysystem@gmail.com";
+const EMAIL_PASS = process.env.EMAIL_PASS || "bbrl uydc tzwj uugh";
+
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: EMAIL_USER,
+    pass: EMAIL_PASS,
+  },
+  secure: true,
+  tls: {
+    rejectUnauthorized: false,
+  },
+  maxConnections: 3,
+  pool: true,
+  maxMessages: 100,
+  rateDelta: 1000,
+  rateLimit: 3,
+  debug: true, // Enable debug logs
+});
+
+// Function to clean up orphaned files
+const cleanupOrphanedFiles = async () => {
+  try {
+    console.log("Running orphaned files cleanup...");
+    const uploadedFiles = await fs.promises.readdir(uploadDir);
+    const dbFiles = await allQuery(
+      "SELECT profile_pic, tenth_cert, twelfth_cert, appointment_order, joining_report, ug_degree, pg_ms_consolidated, phd_degree, journals_list, conferences_list, au_supervisor_letter, fdp_workshops_webinars, nptel_coursera, invited_talks, projects_sanction, consultancy, patent, community_cert, aadhar, pan FROM profiles",
+      []
+    );
+
+    // Extract all file paths from database
+    const dbFilePaths = new Set();
+    dbFiles.forEach((profile) => {
+      Object.values(profile).forEach((value) => {
+        if (
+          value &&
+          typeof value === "string" &&
+          value.startsWith("/uploads/")
+        ) {
+          dbFilePaths.add(path.basename(value));
+        }
+      });
+    });
+
+    // Check each file in uploads directory
+    for (const file of uploadedFiles) {
+      if (file === "placeholder.jpg") continue; // Skip placeholder
+
+      if (!dbFilePaths.has(file)) {
+        const filePath = path.join(uploadDir, file);
+        await fs.promises.unlink(filePath);
+        console.log(`Cleaned up orphaned file: ${filePath}`);
+      }
+    }
+    console.log("Orphaned files cleanup completed");
+  } catch (err) {
+    console.error("Error during orphaned files cleanup:", err);
+  }
+};
+
+// Log email configuration status
+console.log(`Email configuration using: ${EMAIL_USER}`);
+if (!EMAIL_USER || !EMAIL_PASS) {
+  console.warn(
+    "Warning: Email credentials not properly set. Please check your configuration."
+  );
+}
+
+// Verify email configuration
+transporter.verify((error, success) => {
+  if (error) {
+    console.error("Email configuration error:", error);
+  } else {
+    console.log("Email server is ready to send messages");
+  }
+});
+
+// Email Template Function
+const getRegistrationEmailContent = (name, email, password) => {
+  return {
+    subject: "Welcome to SSN Faculty Profile System",
+    text: `Dear ${name},
+
+Your faculty profile has been created in the SSN Faculty Profile System.
+
+Login Details:
+Email: ${email}
+Password: ${password}
+
+Please login to complete your profile setup.
+
+Best regards,
+SSN Faculty Profile System`,
+  };
+};
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -301,9 +400,33 @@ app.get("/profiles/:id", async (req, res) => {
 });
 
 // Add Faculty (Manager Only)
+// Check if phone number exists
+async function isPhoneNumberTaken(phone_number) {
+  try {
+    const user = await getQuery("SELECT id FROM users WHERE phone_number = ?", [
+      phone_number,
+    ]);
+    return !!user;
+  } catch (err) {
+    console.error("Phone number check error:", err);
+    return false;
+  }
+}
+
 app.post(
   "/profiles",
   authenticateToken,
+  async (req, res, next) => {
+    const { phone_number } = req.body;
+    if (await isPhoneNumberTaken(phone_number)) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Phone number is already registered. Please use a different phone number.",
+      });
+    }
+    next();
+  },
   upload.fields([
     { name: "profile_pic", maxCount: 1 },
     { name: "tenth_cert", maxCount: 1 },
@@ -415,6 +538,16 @@ app.post(
       });
     }
 
+    // Check if phone number is already taken
+    if (await isPhoneNumberTaken(phone_number)) {
+      console.log(`Phone number ${phone_number} is already registered`);
+      return res.status(400).json({
+        success: false,
+        message:
+          "This phone number is already registered. Please use a different phone number.",
+      });
+    }
+
     try {
       const hash = await bcrypt.hash(password, 10);
       const userResult = await runQuery(
@@ -424,7 +557,7 @@ app.post(
       const userId = userResult.lastID;
 
       const profileResult = await runQuery(
-        "INSERT INTO profiles (user_id, name, department, bio, profile_pic, qualifications, experience, research, tenth_cert, twelfth_cert, appointment_order, joining_report, ug_degree, pg_ms_consolidated, phd_degree, journals_list, conferences_list, au_supervisor_letter, fdp_workshops_webinars, nptel_coursera, invited_talks, projects_sanction, consultancy, patent, community_cert, aadhar, pan, edit_requested) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO profiles (user_id, name, department, bio, profile_pic, qualifications, experience, research, tenth_cert, twelfth_cert, appointment_order, joining_report, ug_degree, pg_ms_consolidated, phd_degree, journals_list, conferences_list, au_supervisor_letter, fdp_workshops_webinars, nptel_coursera, invited_talks, projects_sanction, consultancy, patent, community_cert, aadhar, pan, is_locked, lock_expiry, edit_requested) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         [
           userId,
           name,
@@ -453,12 +586,87 @@ app.post(
           communityCert || null,
           aadhar || null,
           pan || null,
-          false //edit_requested initially false
+          false, //is_locked initially false
+          null, //lock_expiry initially null
+          false, //edit_requested initially false
         ]
       );
       const newProfile = await getQuery("SELECT * FROM profiles WHERE id = ?", [
         profileResult.lastID,
       ]);
+
+      // Send registration email with improved retry mechanism
+      let emailSent = false;
+      let retryCount = 0;
+      const maxRetries = 5;
+
+      // Prepare email content
+      const emailContent = getRegistrationEmailContent(name, email, password);
+
+      const htmlContent = `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #2c3e50;">Welcome to SSN Faculty Profile System</h2>
+        <p>Dear ${name},</p>
+        <p>Your faculty profile has been created in the SSN Faculty Profile System.</p>
+        <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0;">
+          <h3 style="color: #2c3e50; margin-top: 0;">Login Details:</h3>
+          <p><strong>Email:</strong> ${email}</p>
+          <p><strong>Password:</strong> ${password}</p>
+        </div>
+        <p>Please login to complete your profile setup.</p>
+        <p>Best regards,<br>SSN Faculty Profile System</p>
+      </div>`;
+
+      // Email sending function with retry logic
+      const sendEmailWithRetry = async () => {
+        while (!emailSent && retryCount < maxRetries) {
+          try {
+            const mailOptions = {
+              from: `"SSN Faculty System" <${EMAIL_USER}>`,
+              to: email,
+              subject: emailContent.subject,
+              text: emailContent.text,
+              html: htmlContent,
+              priority: "high",
+              headers: {
+                "X-Priority": "1",
+                "X-MSMail-Priority": "High",
+                Importance: "High",
+              },
+            };
+
+            const info = await transporter.sendMail(mailOptions);
+            emailSent = true;
+            console.log(
+              `Registration email sent successfully to ${email} on attempt ${
+                retryCount + 1
+              }. MessageID: ${info.messageId}`
+            );
+            return true;
+          } catch (emailErr) {
+            retryCount++;
+            console.error(
+              `Email sending attempt ${retryCount} failed for ${email}:`,
+              emailErr.message
+            );
+            if (retryCount < maxRetries) {
+              const delay = retryCount * 2000; // Increasing delay with each retry
+              console.log(
+                `Retrying email send to ${email} in ${delay / 1000} seconds...`
+              );
+              await new Promise((resolve) => setTimeout(resolve, delay));
+            } else {
+              console.error(
+                `Failed to send email to ${email} after ${maxRetries} attempts. Last error: ${emailErr.message}`
+              );
+              return false;
+            }
+          }
+        }
+      };
+
+      // Execute email sending
+      await sendEmailWithRetry();
+
       console.log(
         `Faculty added: ${name} (ID: ${profileResult.lastID}) by ${req.user.email}`
       );
@@ -484,9 +692,13 @@ app.put(
     const { id } = req.params;
 
     try {
-      const profile = await getQuery("SELECT * FROM profiles WHERE id = ?", [id]);
+      const profile = await getQuery("SELECT * FROM profiles WHERE id = ?", [
+        id,
+      ]);
       if (!profile) {
-        return res.status(404).json({ success: false, message: "Profile not found" });
+        return res
+          .status(404)
+          .json({ success: false, message: "Profile not found" });
       }
 
       if (profile.is_locked) {
@@ -494,9 +706,10 @@ app.put(
         const expiry = new Date(profile.lock_expiry);
 
         if (now < expiry && req.user.role !== "manager") {
-          return res.status(403).json({ 
-            success: false, 
-            message: "Profile is locked. Please request edit access from admin."
+          return res.status(403).json({
+            success: false,
+            message:
+              "Profile is locked. Please request edit access from admin.",
           });
         }
 
@@ -509,7 +722,9 @@ app.put(
       }
       next();
     } catch (err) {
-      res.status(500).json({ success: false, message: "Server error: " + err.message });
+      res
+        .status(500)
+        .json({ success: false, message: "Server error: " + err.message });
     }
   },
   upload.fields([
@@ -748,7 +963,9 @@ app.put(
 // Lock/Unlock All Profiles
 app.post("/profiles/lock-all", authenticateToken, async (req, res) => {
   if (req.user.role !== "manager") {
-    return res.status(403).json({ success: false, message: "Manager access required" });
+    return res
+      .status(403)
+      .json({ success: false, message: "Manager access required" });
   }
 
   const { lock } = req.body;
@@ -759,10 +976,15 @@ app.post("/profiles/lock-all", authenticateToken, async (req, res) => {
       "UPDATE profiles SET is_locked = ?, lock_expiry = ? WHERE 1",
       [lock ? 1 : 0, lock ? expiry.toISOString() : null]
     );
-    res.json({ success: true, message: `All profiles ${lock ? 'locked' : 'unlocked'} successfully` });
+    res.json({
+      success: true,
+      message: `All profiles ${lock ? "locked" : "unlocked"} successfully`,
+    });
   } catch (err) {
     console.error("Lock/unlock all error:", err);
-    res.status(500).json({ success: false, message: "Server error: " + err.message });
+    res
+      .status(500)
+      .json({ success: false, message: "Server error: " + err.message });
   }
 });
 
@@ -770,21 +992,24 @@ app.post("/profiles/lock-all", authenticateToken, async (req, res) => {
 app.post("/profiles/:id/request-edit", authenticateToken, async (req, res) => {
   const { id } = req.params;
   try {
-    await runQuery(
-      "UPDATE profiles SET edit_requested = TRUE WHERE id = ?",
-      [id]
-    );
+    await runQuery("UPDATE profiles SET edit_requested = TRUE WHERE id = ?", [
+      id,
+    ]);
     res.json({ success: true, message: "Edit request submitted" });
   } catch (err) {
     console.error("Edit request error:", err);
-    res.status(500).json({ success: false, message: "Server error: " + err.message });
+    res
+      .status(500)
+      .json({ success: false, message: "Server error: " + err.message });
   }
 });
 
 // Approve Edit
 app.post("/profiles/:id/approve-edit", authenticateToken, async (req, res) => {
   if (req.user.role !== "manager") {
-    return res.status(403).json({ success: false, message: "Manager access required" });
+    return res
+      .status(403)
+      .json({ success: false, message: "Manager access required" });
   }
 
   const { id } = req.params;
@@ -798,14 +1023,18 @@ app.post("/profiles/:id/approve-edit", authenticateToken, async (req, res) => {
     res.json({ success: true, message: "Edit request approved" });
   } catch (err) {
     console.error("Approve edit error:", err);
-    res.status(500).json({ success: false, message: "Server error: " + err.message });
+    res
+      .status(500)
+      .json({ success: false, message: "Server error: " + err.message });
   }
 });
 
 // Lock/Unlock Profile
 app.post("/profiles/:id/lock", authenticateToken, async (req, res) => {
   if (req.user.role !== "manager") {
-    return res.status(403).json({ success: false, message: "Manager access required" });
+    return res
+      .status(403)
+      .json({ success: false, message: "Manager access required" });
   }
 
   const { id } = req.params;
@@ -827,68 +1056,157 @@ app.post("/profiles/:id/lock", authenticateToken, async (req, res) => {
         [id]
       );
     }
-    res.json({ success: true, message: `Profile ${lock ? 'locked' : 'unlocked'} successfully` });
-  } catch (err) {    console.error("Lock/unlock error:", err);
-    res.status(500).json({ success: false, message: "Server error: " + err.message });
+    res.json({
+      success: true,
+      message: `Profile ${lock ? "locked" : "unlocked"} successfully`,
+    });
+  } catch (err) {
+    console.error("Lock/unlock error:", err);
+    res
+      .status(500)
+      .json({ success: false, message: "Server error: " + err.message });
   }
 });
 
-
 // Delete Profile (Manager Only)
 app.delete("/profiles/:id", authenticateToken, async (req, res) => {
-  const { id } = req.params;
   if (req.user.role !== "manager") {
-    console.log(`Unauthorized delete attempt by ${req.user.email}`);
     return res
       .status(403)
       .json({ success: false, message: "Manager access required" });
   }
+  const { id } = req.params;
+
+  // Use a transaction to ensure database consistency
+  const dbTransaction = async () => {
+    return new Promise((resolve, reject) => {
+      db.serialize(() => {
+        db.run("BEGIN TRANSACTION");
+
+        db.get(
+          "SELECT * FROM profiles WHERE id = ?",
+          [id],
+          async (err, profile) => {
+            if (err) {
+              db.run("ROLLBACK");
+              return reject(err);
+            }
+
+            if (!profile) {
+              db.run("ROLLBACK");
+              return reject(new Error("Profile not found"));
+            }
+
+            db.get(
+              "SELECT * FROM users WHERE id = ?",
+              [profile.user_id],
+              async (err, user) => {
+                if (err) {
+                  db.run("ROLLBACK");
+                  return reject(err);
+                }
+
+                if (!user) {
+                  db.run("ROLLBACK");
+                  return reject(new Error("User not found"));
+                }
+
+                // Delete database records first to maintain referential integrity
+                db.run(
+                  "DELETE FROM profiles WHERE id = ?",
+                  [id],
+                  async (err) => {
+                    if (err) {
+                      db.run("ROLLBACK");
+                      return reject(err);
+                    }
+
+                    db.run(
+                      "DELETE FROM users WHERE id = ?",
+                      [profile.user_id],
+                      async (err) => {
+                        if (err) {
+                          db.run("ROLLBACK");
+                          return reject(err);
+                        }
+
+                        db.run("COMMIT", (err) => {
+                          if (err) {
+                            db.run("ROLLBACK");
+                            return reject(err);
+                          }
+                          resolve({ profile, user });
+                        });
+                      }
+                    );
+                  }
+                );
+              }
+            );
+          }
+        );
+      });
+    });
+  };
 
   try {
-    const profile = await getQuery("SELECT * FROM profiles WHERE id = ?", [id]);
-    if (!profile) {
-      console.log(`Faculty profile not found: ${id}`);
-      return res
-        .status(404)
-        .json({ success: false, message: "Profile not found" });
+    // Execute transaction
+    const { profile } = await dbTransaction();
+
+    // After successful database deletion, clean up files
+    const fileFields = [
+      "profile_pic",
+      "tenth_cert",
+      "twelfth_cert",
+      "appointment_order",
+      "joining_report",
+      "ug_degree",
+      "pg_ms_consolidated",
+      "phd_degree",
+      "journals_list",
+      "conferences_list",
+      "au_supervisor_letter",
+      "fdp_workshops_webinars",
+      "nptel_coursera",
+      "invited_talks",
+      "projects_sanction",
+      "consultancy",
+      "patent",
+      "community_cert",
+      "aadhar",
+      "pan",
+    ];
+
+    // Delete files asynchronously after database transaction completes
+    const fileDeletePromises = [];
+    for (const field of fileFields) {
+      if (profile[field]) {
+        // Fix file path construction - profile[field] already contains '/uploads/' prefix
+        const filePath = path.join(__dirname, profile[field]);
+        fileDeletePromises.push(
+          fs.promises
+            .unlink(filePath)
+            .then(() => console.log(`Deleted file: ${filePath}`))
+            .catch((err) =>
+              console.warn(
+                `Warning: Could not delete file ${filePath}:`,
+                err.message
+              )
+            )
+        );
+      }
     }
 
-    const filesToDelete = [
-      profile.profile_pic,
-      profile.tenth_cert,
-      profile.twelfth_cert,
-      profile.appointment_order,
-      profile.joining_report,
-      profile.ug_degree,
-      profile.pg_ms_consolidated,
-      profile.phd_degree,
-      profile.journals_list,
-      profile.conferences_list,
-      profile.au_supervisor_letter,
-      profile.fdp_workshops_webinars,
-      profile.nptel_coursera,
-      profile.invited_talks,
-      profile.projects_sanction,
-      profile.consultancy,
-      profile.patent,
-      profile.community_cert,
-      profile.aadhar,
-      profile.pan,
-    ];
-    filesToDelete.forEach((file) => {
-      if (file && fs.existsSync(path.join(__dirname, file))) {
-        fs.unlinkSync(path.join(__dirname, file));
-        console.log(`Deleted file: ${file}`);
-      }
-    });
+    // Wait for all file deletions to complete
+    await Promise.allSettled(fileDeletePromises);
 
-    await runQuery("DELETE FROM profiles WHERE id = ?", [id]);
-    await runQuery(
-      "DELETE FROM users WHERE id = (SELECT user_id FROM profiles WHERE id = ?)",
-      [id]
+    console.log(
+      `Successfully deleted faculty profile ${id} and associated files`
     );
-    console.log(`Faculty profile deleted: ${id} by ${req.user.email}`);
-    res.json({ success: true, message: "Profile deleted successfully" });
+    res.json({
+      success: true,
+      message: "Profile and associated files deleted successfully",
+    });
   } catch (err) {
     console.error("Delete profile error:", err);
     res
@@ -935,6 +1253,12 @@ app.post("/reset-password", async (req, res) => {
 });
 
 // Start Server
+// Run orphaned files cleanup on server start
+cleanupOrphanedFiles();
+
+// Schedule periodic cleanup every 24 hours
+setInterval(cleanupOrphanedFiles, 24 * 60 * 60 * 1000);
+
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT} - SSN College of Engineering`);
 });

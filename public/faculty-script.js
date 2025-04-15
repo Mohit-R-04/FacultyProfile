@@ -75,59 +75,45 @@ function showToast(message, type = "success") {
 
 // Validate Token and Fetch User Info
 async function validateToken(token) {
-  console.log(
-    "[validateToken] Token:",
-    token ? token.substring(0, 10) + "..." : "No token"
-  );
-  if (!token) {
-    console.log("[validateToken] No token, returning null");
-    return null;
-  }
+  if (!token) return null;
   try {
-    console.log("[validateToken] Fetching:", `${API_URL}/me`);
     const response = await fetch(`${API_URL}/me`, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
+      headers: { Authorization: `Bearer ${token}` },
     });
-    console.log(
-      "[validateToken] Status:",
-      response.status,
-      response.statusText
-    );
     const data = await response.json();
-    console.log("[validateToken] Raw response:", JSON.stringify(data, null, 2));
-
-    if (!response.ok) {
-      throw new Error(
-        `HTTP error: ${response.status} - ${data.message || "Unknown error"}`
-      );
-    }
-    if (!data.success || !data.user) {
-      throw new Error("Response lacks success or user data");
-    }
-
-    const user = {
-      id: data.user.id ? String(data.user.id) : null,
-      email: typeof data.user.email === "string" ? data.user.email : null,
-      role: typeof data.user.role === "string" ? data.user.role : null,
+    if (!data.success || !data.user) return null;
+    return {
+      id: String(data.user.id),
+      email: data.user.email,
+      role: data.user.role,
     };
-
-    if (!user.id || !user.email || !user.role) {
-      throw new Error(
-        `Invalid user data: id=${user.id}, email=${user.email}, role=${user.role}`
-      );
-    }
-
-    console.log("[validateToken] Success, user:", user);
-    return user;
   } catch (err) {
-    console.error("[validateToken] Error:", err.message);
+    console.error("Token validation error:", err);
     return null;
   }
 }
+
+// Initialize App State
+async function initApp() {
+  const token = localStorage.getItem("token");
+  if (token) {
+    currentUser = await validateToken(token);
+    if (currentUser) {
+      updateUI();
+      if (facultyId) {
+        await loadFacultyProfile();
+      }
+    } else {
+      localStorage.removeItem("token");
+    }
+  }
+  if (facultyId) {
+    await loadFacultyProfile();
+  }
+}
+
+// Call initApp when the page loads
+document.addEventListener("DOMContentLoaded", initApp);
 
 // Update UI Based on User State
 function updateUI() {
@@ -601,23 +587,26 @@ async function initialize() {
   console.log("[initialize] Starting on:", window.location.pathname);
   const token = localStorage.getItem("token");
   const savedEmail = localStorage.getItem("email");
-  
-  console.log("[initialize] Token:", token ? token.substring(0, 10) + "..." : "No token");
+
+  console.log(
+    "[initialize] Token:",
+    token ? token.substring(0, 10) + "..." : "No token"
+  );
   console.log("[initialize] Saved email:", savedEmail);
 
   currentUser = null;
-  
+
   if (token && savedEmail) {
     try {
       const response = await fetch(`${API_URL}/me`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       });
       const data = await response.json();
       if (data.success && data.user && data.user.email === savedEmail) {
         currentUser = {
           id: String(data.user.id),
           email: data.user.email,
-          role: data.user.role
+          role: data.user.role,
         };
       } else {
         localStorage.removeItem("token");

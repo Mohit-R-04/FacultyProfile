@@ -93,14 +93,53 @@ async function checkToken() {
     logout();
     return false;
   }
-  const isValid = await validateToken(token);
-  if (!isValid) {
-    showToast("Session expired. Please log in again.", "error");
+  try {
+    const userData = await fetchCurrentUser(token);
+    if (!userData || !userData.success || !userData.user) {
+      showToast("Session expired. Please log in again.", "error");
+      logout();
+      return false;
+    }
+    currentUser = userData.user;
+    currentUser.id = String(userData.user.id);
+    elements.userStatus.innerHTML = `<i class="fas fa-user"></i> ${currentUser.email} <span class="role-tag">${currentUser.role}</span>`;
+    elements.loginBtn.classList.add("hidden");
+    elements.logoutBtn.classList.remove("hidden");
+    return true;
+  } catch (err) {
+    console.error("Token validation error:", err);
     logout();
     return false;
   }
-  return true;
 }
+
+// Initialize App
+async function initApp() {
+  const token = localStorage.getItem("token");
+  if (token) {
+    const userData = await fetchCurrentUser(token);
+    if (userData && userData.success && userData.user) {
+      currentUser = userData.user;
+      currentUser.id = String(userData.user.id);
+      elements.userStatus.innerHTML = `<i class="fas fa-user"></i> ${currentUser.email} <span class="role-tag">${currentUser.role}</span>`;
+      elements.loginBtn.classList.add("hidden");
+      elements.logoutBtn.classList.remove("hidden");
+      if (currentUser.role === "manager") {
+        elements.adminDashboard.classList.remove("hidden");
+        elements.profileGrid.classList.add("hidden");
+        loadAdminProfiles();
+      } else {
+        loadProfiles();
+      }
+    } else {
+      logout();
+    }
+  }
+  loadProfiles();
+}
+
+// Call initApp when the page loads
+document.addEventListener("DOMContentLoaded", initApp);
 
 // Logout Function
 function logout() {
@@ -182,9 +221,8 @@ if (elements.loginForm) {
           loadProfiles();
         }
         showToast(`Welcome, ${currentUser.email}!`);
-        elements.loginForm.email.value = '';
-        elements.loginForm.password.value = '';
-
+        elements.loginForm.email.value = "";
+        elements.loginForm.password.value = "";
       } else {
         showToast("Login failed: " + data.message, "error");
       }
@@ -241,12 +279,15 @@ function classifyRole(bio) {
     return "Associate Professor";
   } else if (lowerBio.includes("assistant professor")) {
     return "Assistant Professor";
-  } else if (lowerBio.includes("professor") && !lowerBio.includes("associate") && !lowerBio.includes("assistant")) {
+  } else if (
+    lowerBio.includes("professor") &&
+    !lowerBio.includes("associate") &&
+    !lowerBio.includes("assistant")
+  ) {
     return "Professor";
   }
   return "Assistant Professor"; // Default to Assistant Professor if no match
 }
-
 
 // Load Profiles (Public Access)
 async function loadProfiles() {
@@ -254,7 +295,7 @@ async function loadProfiles() {
     const res = await fetch(`${API_URL}/profiles`, { cache: "no-store" });
     if (!res.ok) throw new Error("Failed to fetch profiles");
     profiles = await res.json();
-    profiles.forEach(profile => {
+    profiles.forEach((profile) => {
       profile.role = classifyRole(profile.bio);
     });
     console.log("Fetched profiles:", profiles);
@@ -275,11 +316,12 @@ function renderProfiles(profileList) {
   profileList.forEach((profile) => {
     const card = document.createElement("div");
     card.className = "profile-card glassy";
-    const isOwnProfile = currentUser && 
-      currentUser.role === "staff" && 
+    const isOwnProfile =
+      currentUser &&
+      currentUser.role === "staff" &&
       String(profile.user_id) === currentUser.id;
-    
-    let editButton = '';
+
+    let editButton = "";
     if (isOwnProfile) {
       if (profile.is_locked) {
         editButton = `<button class="btn glassy-btn btn-warning" onclick="requestEdit(${profile.id})">Request Edit</button>`;
@@ -322,24 +364,26 @@ async function loadAdminProfiles() {
     });
     if (!res.ok) throw new Error("Failed to fetch profiles");
     profiles = await res.json();
-    profiles.forEach(profile => {
+    profiles.forEach((profile) => {
       profile.role = classifyRole(profile.bio);
     });
     console.log("Fetched admin profiles:", profiles);
     elements.totalStaff.textContent = profiles.length;
 
     // Add Lock All button if not exists
-    let lockAllBtn = document.getElementById('lock-all-btn');
+    let lockAllBtn = document.getElementById("lock-all-btn");
     if (!lockAllBtn) {
-      lockAllBtn = document.createElement('button');
-      lockAllBtn.id = 'lock-all-btn';
-      lockAllBtn.className = 'btn glassy-btn btn-warning';
+      lockAllBtn = document.createElement("button");
+      lockAllBtn.id = "lock-all-btn";
+      lockAllBtn.className = "btn glassy-btn btn-warning";
       elements.totalStaff.parentNode.appendChild(lockAllBtn);
     }
 
     // Check if any profiles are unlocked
-    const hasUnlockedProfiles = profiles.some(p => !p.is_locked);
-    lockAllBtn.textContent = hasUnlockedProfiles ? 'Lock All Profiles' : 'Unlock All Profiles';
+    const hasUnlockedProfiles = profiles.some((p) => !p.is_locked);
+    lockAllBtn.textContent = hasUnlockedProfiles
+      ? "Lock All Profiles"
+      : "Unlock All Profiles";
     lockAllBtn.onclick = () => toggleAllProfiles(hasUnlockedProfiles);
 
     renderAdminProfiles(profiles);
@@ -352,84 +396,84 @@ async function loadAdminProfiles() {
 async function toggleAllProfiles(lock) {
   try {
     const res = await fetch(`${API_URL}/profiles/lock-all`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${localStorage.getItem("token")}`,
       },
-      body: JSON.stringify({ lock })
+      body: JSON.stringify({ lock }),
     });
     const data = await res.json();
     if (data.success) {
-      showToast(`All profiles ${lock ? 'locked' : 'unlocked'} successfully`);
+      showToast(`All profiles ${lock ? "locked" : "unlocked"} successfully`);
       loadAdminProfiles();
     } else {
-      showToast(data.message, 'error');
+      showToast(data.message, "error");
     }
   } catch (err) {
-    showToast(err.message, 'error');
+    showToast(err.message, "error");
   }
 }
 
 async function toggleLock(id, lock) {
   try {
     const res = await fetch(`${API_URL}/profiles/${id}/lock`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${localStorage.getItem("token")}`,
       },
-      body: JSON.stringify({ lock })
+      body: JSON.stringify({ lock }),
     });
     const data = await res.json();
     if (data.success) {
-      showToast(`Profile ${lock ? 'locked' : 'unlocked'} successfully`);
+      showToast(`Profile ${lock ? "locked" : "unlocked"} successfully`);
       loadAdminProfiles();
     } else {
-      showToast(data.message, 'error');
+      showToast(data.message, "error");
     }
   } catch (err) {
-    showToast(err.message, 'error');
+    showToast(err.message, "error");
   }
 }
 
 async function requestEdit(id) {
   try {
     const res = await fetch(`${API_URL}/profiles/${id}/request-edit`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
-      }
+        Authorization: `Bearer ${localStorage.getItem("token")}`,
+      },
     });
     const data = await res.json();
     if (data.success) {
-      showToast('Edit request submitted successfully');
+      showToast("Edit request submitted successfully");
       loadProfiles();
     } else {
-      showToast(data.message, 'error');
+      showToast(data.message, "error");
     }
   } catch (err) {
-    showToast(err.message, 'error');
+    showToast(err.message, "error");
   }
 }
 
 async function approveEdit(id) {
   try {
     const res = await fetch(`${API_URL}/profiles/${id}/approve-edit`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
-      }
+        Authorization: `Bearer ${localStorage.getItem("token")}`,
+      },
     });
     const data = await res.json();
     if (data.success) {
-      showToast('Edit request approved');
+      showToast("Edit request approved");
       loadAdminProfiles();
     } else {
-      showToast(data.message, 'error');
+      showToast(data.message, "error");
     }
   } catch (err) {
-    showToast(err.message, 'error');
+    showToast(err.message, "error");
   }
 }
 
@@ -456,23 +500,35 @@ function renderAdminProfiles(profileList) {
       }</p>
       <p><strong>Role:</strong> ${profile.role}</p>
       <div class="profile-actions">
-        <button class="btn glassy-btn btn-primary" onclick="viewProfile(${profile.id})">View</button>
-        ${canEdit
-          ? profile.is_locked && currentUser.role !== 'manager'
-            ? `<button class="btn glassy-btn btn-warning" onclick="requestEdit(${profile.id})">Request Edit</button>`
-            : `<button class="btn glassy-btn btn-secondary" onclick="editProfile(${profile.id})">Edit</button>`
-          : ""
+        <button class="btn glassy-btn btn-primary" onclick="viewProfile(${
+          profile.id
+        })">View</button>
+        ${
+          canEdit
+            ? profile.is_locked && currentUser.role !== "manager"
+              ? `<button class="btn glassy-btn btn-warning" onclick="requestEdit(${profile.id})">Request Edit</button>`
+              : `<button class="btn glassy-btn btn-secondary" onclick="editProfile(${profile.id})">Edit</button>`
+            : ""
         }
-        ${currentUser.role === "manager"
-          ? `
-            ${profile.edit_requested ? `<button class="btn glassy-btn btn-primary" onclick="approveEdit(${profile.id})">Approve Edit</button>` : ''}
-            <button class="btn glassy-btn ${profile.is_locked ? 'btn-success' : 'btn-warning'}" 
+        ${
+          currentUser.role === "manager"
+            ? `
+            ${
+              profile.edit_requested
+                ? `<button class="btn glassy-btn btn-primary" onclick="approveEdit(${profile.id})">Approve Edit</button>`
+                : ""
+            }
+            <button class="btn glassy-btn ${
+              profile.is_locked ? "btn-success" : "btn-warning"
+            }" 
               onclick="toggleLock(${profile.id}, ${!profile.is_locked})">
-              ${profile.is_locked ? 'Unlock' : 'Lock'}
+              ${profile.is_locked ? "Unlock" : "Lock"}
             </button>
-            <button class="btn glassy-btn btn-danger" onclick="deleteProfile(${profile.id})">Delete</button>
+            <button class="btn glassy-btn btn-danger" onclick="deleteProfile(${
+              profile.id
+            })">Delete</button>
           `
-          : ""
+            : ""
         }
       </div>
     `;
@@ -542,69 +598,74 @@ async function deleteProfile(id) {
 }
 
 // Add/Edit Profile Form Submission
+async function checkPhoneNumber(phone_number) {
+  try {
+    const res = await fetch(`${API_URL}/profiles`);
+    const profiles = await res.json();
+    const users = profiles.map((profile) => profile.user_id);
+    const phoneExists = users.some(
+      (user) => user.phone_number === phone_number
+    );
+    return phoneExists;
+  } catch (err) {
+    console.error("Phone number check error:", err);
+    return false;
+  }
+}
+
 if (elements.profileForm) {
   elements.profileForm.addEventListener("submit", async (e) => {
     e.preventDefault();
-    if (!(await checkToken())) return;
-    const formData = new FormData(elements.profileForm);
-    const id = formData.get("id");
-    const method = id ? "PUT" : "POST";
-    const url = id ? `${API_URL}/profiles/${id}` : `${API_URL}/profiles`;
+    const formData = new FormData(e.target);
+    const phone_number = formData.get("phone_number");
 
-    if (id && currentUser.role !== "manager") {
-      const profile = profiles.find((p) => p.id === parseInt(id));
-      if (String(profile.user_id) !== currentUser.id) {
-        showToast("Unauthorized: You can only edit your own profile", "error");
-        return;
-      }
+    // Check if phone number is already taken
+    const phoneExists = await checkPhoneNumber(phone_number);
+    if (phoneExists) {
+      showToast(
+        "This phone number is already registered. Please use a different phone number.",
+        "error"
+      );
+      return;
     }
 
     try {
-      const res = await fetch(url, {
-        method,
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API_URL}/profiles`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
         body: formData,
       });
+
       const data = await res.json();
       if (data.success) {
+        showToast("Faculty added successfully");
         elements.editModal.classList.add("hidden");
-        if (currentUser.role === "manager") {
-          loadAdminProfiles();
-        } else {
-          loadProfiles();
-        }
-        showToast(
-          `Faculty ${id ? "updated" : "added"}: ${formData.get("name")}`
-        );
+        loadAdminProfiles();
       } else {
-        showToast(
-          `Failed to ${id ? "update" : "add"} faculty: ${data.message}`,
-          "error"
-        );
+        showToast(data.message || "Failed to add faculty", "error");
       }
     } catch (err) {
-      showToast(
-        `Server error during ${id ? "update" : "add"}: ${err.message}`,
-        "error"
-      );
-      console.error(err);
+      console.error("Add faculty error:", err);
+      showToast("Failed to add faculty", "error");
     }
   });
 }
 
 // Add Staff (Manager Only)
 async function loadEditRequests() {
-  const requestedProfiles = profiles.filter(p => p.edit_requested);
-  elements.requestsList.innerHTML = '';
+  const requestedProfiles = profiles.filter((p) => p.edit_requested);
+  elements.requestsList.innerHTML = "";
 
   if (requestedProfiles.length === 0) {
-    elements.requestsList.innerHTML = '<p class="text-center">No pending edit requests</p>';
+    elements.requestsList.innerHTML =
+      '<p class="text-center">No pending edit requests</p>';
     return;
   }
 
-  requestedProfiles.forEach(profile => {
-    const requestCard = document.createElement('div');
-    requestCard.className = 'request-card glassy';
+  requestedProfiles.forEach((profile) => {
+    const requestCard = document.createElement("div");
+    requestCard.className = "request-card glassy";
     requestCard.innerHTML = `
       <div class="request-info">
         <h4>${profile.name}</h4>
@@ -731,8 +792,9 @@ function filterProfiles() {
       (profile.qualifications || "").toLowerCase().includes(searchTerm) ||
       (profile.experience || "").toLowerCase().includes(searchTerm);
     const matchesRole = role ? profile.role === role : true;
-    const matchesResearch = researchDomain ? 
-      (profile.research || "").toLowerCase().includes(researchDomain) : true;
+    const matchesResearch = researchDomain
+      ? (profile.research || "").toLowerCase().includes(researchDomain)
+      : true;
 
     return matchesSearch && matchesRole && matchesResearch;
   });
@@ -745,8 +807,10 @@ function filterProfiles() {
 }
 
 // Role Filter
-if (document.getElementById('role-filter')) {
-  document.getElementById('role-filter').addEventListener('change', filterProfiles);
+if (document.getElementById("role-filter")) {
+  document
+    .getElementById("role-filter")
+    .addEventListener("change", filterProfiles);
 }
 
 // Initialize
@@ -766,7 +830,7 @@ async function initialize() {
           });
           if (!res.ok) throw new Error("Failed to fetch profiles");
           profiles = await res.json();
-          profiles.forEach(profile => {
+          profiles.forEach((profile) => {
             profile.role = classifyRole(profile.bio);
           });
           elements.loginBtn.classList.add("hidden");
