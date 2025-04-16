@@ -560,14 +560,12 @@ async function editProfile(id) {
   elements.profileForm.name.value = profile.name || "";
   elements.profileForm.bio.value = profile.bio || "";
   elements.profileForm.qualifications.value = profile.qualifications || "";
+  elements.profileForm.date_of_joining.value = profile.date_of_joining || "";
   elements.profileForm.experience.value = profile.experience || "";
   elements.profileForm.research.value = profile.research || "";
   elements.profileForm.profile_pic.value = "";
   elements.profileForm.tenth_cert.value = "";
   // Reset other file inputs (omitted for brevity)
-  elements.profileForm.querySelector("#email-group").classList.add("hidden");
-  elements.profileForm.querySelector("#password-group").classList.add("hidden");
-  elements.profileForm.querySelector("#phone-group").classList.add("hidden");
 }
 
 // Delete Profile (Manager Only)
@@ -598,36 +596,10 @@ async function deleteProfile(id) {
 }
 
 // Add/Edit Profile Form Submission
-async function checkPhoneNumber(phone_number) {
-  try {
-    const res = await fetch(`${API_URL}/profiles`);
-    const profiles = await res.json();
-    const users = profiles.map((profile) => profile.user_id);
-    const phoneExists = users.some(
-      (user) => user.phone_number === phone_number
-    );
-    return phoneExists;
-  } catch (err) {
-    console.error("Phone number check error:", err);
-    return false;
-  }
-}
-
 if (elements.profileForm) {
   elements.profileForm.addEventListener("submit", async (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
-    const phone_number = formData.get("phone_number");
-
-    // Check if phone number is already taken
-    const phoneExists = await checkPhoneNumber(phone_number);
-    if (phoneExists) {
-      showToast(
-        "This phone number is already registered. Please use a different phone number.",
-        "error"
-      );
-      return;
-    }
 
     try {
       const token = localStorage.getItem("token");
@@ -671,6 +643,7 @@ async function loadEditRequests() {
         <h4>${profile.name}</h4>
         <p>Department: ${profile.department}</p>
         <p>Role: ${profile.role}</p>
+        <p>Date of Joining: ${profile.date_of_joining || "Not specified"}</p>
       </div>
       <div class="request-actions">
         <button class="btn glassy-btn btn-success" onclick="approveEdit(${profile.id})">

@@ -166,6 +166,7 @@ db.serialize(async () => {
       bio TEXT,
       profile_pic TEXT,
       qualifications TEXT,
+      date_of_joining TEXT,
       experience TEXT,
       research TEXT,
       tenth_cert TEXT,
@@ -502,33 +503,9 @@ app.delete("/profiles/:id", authenticateToken, async (req, res) => {
 });
 
 // Add Faculty (Manager Only)
-// Check if phone number exists
-async function isPhoneNumberTaken(phone_number) {
-  try {
-    const user = await getQuery("SELECT id FROM users WHERE phone_number = ?", [
-      phone_number,
-    ]);
-    return !!user;
-  } catch (err) {
-    console.error("Phone number check error:", err);
-    return false;
-  }
-}
-
 app.post(
   "/profiles",
   authenticateToken,
-  async (req, res, next) => {
-    const { phone_number } = req.body;
-    if (await isPhoneNumberTaken(phone_number)) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Phone number is already registered. Please use a different phone number.",
-      });
-    }
-    next();
-  },
   upload.fields([
     { name: "profile_pic", maxCount: 1 },
     { name: "tenth_cert", maxCount: 1 },
@@ -565,6 +542,7 @@ app.post(
       name,
       bio,
       qualifications,
+      date_of_joining,
       experience,
       research,
     } = req.body;
@@ -625,7 +603,7 @@ app.post(
     const aadhar = files.aadhar ? `/uploads/${files.aadhar[0].filename}` : null;
     const pan = files.pan ? `/uploads/${files.pan[0].filename}` : null;
 
-    console.log("Adding faculty:", { email, phone_number, name, profilePic });
+    console.log("Adding faculty:", { email, phone_number, name, profilePic, date_of_joining });
 
     if (!email || !password || !name) {
       console.log("Missing required fields:", {
@@ -639,16 +617,6 @@ app.post(
       });
     }
 
-    // Check if phone number is already taken
-    if (phone_number && (await isPhoneNumberTaken(phone_number))) {
-      console.log(`Phone number ${phone_number} is already registered`);
-      return res.status(400).json({
-        success: false,
-        message:
-          "This phone number is already registered. Please use a different phone number.",
-      });
-    }
-
     try {
       const hash = await bcrypt.hash(password, 10);
       const userResult = await runQuery(
@@ -658,7 +626,7 @@ app.post(
       const userId = userResult.lastID;
 
       const profileResult = await runQuery(
-        "INSERT INTO profiles (user_id, name, department, bio, profile_pic, qualifications, experience, research, tenth_cert, twelfth_cert, appointment_order, joining_report, ug_degree, pg_ms_consolidated, phd_degree, journals_list, conferences_list, au_supervisor_letter, fdp_workshops_webinars, nptel_coursera, invited_talks, projects_sanction, consultancy, patent, community_cert, aadhar, pan, is_locked, lock_expiry, edit_requested) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO profiles (user_id, name, department, bio, profile_pic, qualifications, date_of_joining, experience, research, tenth_cert, twelfth_cert, appointment_order, joining_report, ug_degree, pg_ms_consolidated, phd_degree, journals_list, conferences_list, au_supervisor_letter, fdp_workshops_webinars, nptel_coursera, invited_talks, projects_sanction, consultancy, patent, community_cert, aadhar, pan, is_locked, lock_expiry, edit_requested) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         [
           userId,
           name,
@@ -666,6 +634,7 @@ app.post(
           bio || "",
           profilePic || null,
           qualifications || "",
+          date_of_joining || null,
           experience || "",
           research || "",
           tenthCert || null,
@@ -785,7 +754,7 @@ app.post(
   }
 );
 
-// Update Profile (Staff Own or Manager)
+// Update Faculty Profile
 app.put(
   "/profiles/:id",
   authenticateToken,
@@ -852,7 +821,7 @@ app.put(
   ]),
   async (req, res) => {
     const { id } = req.params;
-    const { name, bio, qualifications, experience, research } = req.body;
+    const { name, bio, qualifications, experience, research, email, phone_number } = req.body;
 
     const files = req.files || {};
     const profilePic = files.profile_pic
@@ -910,7 +879,7 @@ app.put(
     const aadhar = files.aadhar ? `/uploads/${files.aadhar[0].filename}` : null;
     const pan = files.pan ? `/uploads/${files.pan[0].filename}` : null;
 
-    console.log("Update request:", { id, name, bio, profilePic });
+    console.log("Update request:", { id, name, bio, profilePic, email, phone_number });
 
     if (!name) {
       console.log("Missing required field: name");
@@ -938,6 +907,28 @@ app.put(
           success: false,
           message: "Unauthorized: Can only edit own profile",
         });
+      }
+
+      // Update user information if provided (only email and phone number)
+      if (email || phone_number) {
+        const userUpdateFields = [];
+        const userUpdateParams = [];
+        
+        if (email) {
+          userUpdateFields.push("email = ?");
+          userUpdateParams.push(email);
+        }
+        
+        if (phone_number) {
+          userUpdateFields.push("phone_number = ?");
+          userUpdateParams.push(phone_number);
+        }
+        
+        if (userUpdateFields.length > 0) {
+          userUpdateParams.push(profile.user_id);
+          const userUpdateQuery = `UPDATE users SET ${userUpdateFields.join(", ")} WHERE id = ?`;
+          await runQuery(userUpdateQuery, userUpdateParams);
+        }
       }
 
       const oldFiles = [
@@ -1079,287 +1070,16 @@ app.post("/profiles/lock-all", authenticateToken, async (req, res) => {
     );
     res.json({
       success: true,
-      message: `All profiles ${lock ? "locked" : "unlocked"} successfully`,
+      message: `All profiles ${lock ? "locked" : "unlocked"} successfully`
     });
   } catch (err) {
-    console.error("Lock/unlock all error:", err);
+    console.error("Lock/unlock profiles error:", err);
     res
       .status(500)
       .json({ success: false, message: "Server error: " + err.message });
   }
 });
-
-// Edit Request
-app.post("/profiles/:id/request-edit", authenticateToken, async (req, res) => {
-  const { id } = req.params;
-  try {
-    await runQuery("UPDATE profiles SET edit_requested = TRUE WHERE id = ?", [
-      id,
-    ]);
-    res.json({ success: true, message: "Edit request submitted" });
-  } catch (err) {
-    console.error("Edit request error:", err);
-    res
-      .status(500)
-      .json({ success: false, message: "Server error: " + err.message });
-  }
-});
-
-// Approve Edit
-app.post("/profiles/:id/approve-edit", authenticateToken, async (req, res) => {
-  if (req.user.role !== "manager") {
-    return res
-      .status(403)
-      .json({ success: false, message: "Manager access required" });
-  }
-
-  const { id } = req.params;
-  try {
-    const expiry = new Date();
-    expiry.setHours(expiry.getHours() + 24);
-    await runQuery(
-      "UPDATE profiles SET is_locked = FALSE, edit_requested = FALSE, lock_expiry = ? WHERE id = ?",
-      [expiry.toISOString(), id]
-    );
-    res.json({ success: true, message: "Edit request approved" });
-  } catch (err) {
-    console.error("Approve edit error:", err);
-    res
-      .status(500)
-      .json({ success: false, message: "Server error: " + err.message });
-  }
-});
-
-// Lock/Unlock Profile
-app.post("/profiles/:id/lock", authenticateToken, async (req, res) => {
-  if (req.user.role !== "manager") {
-    return res
-      .status(403)
-      .json({ success: false, message: "Manager access required" });
-  }
-
-  const { id } = req.params;
-  const { lock } = req.body;
-
-  try {
-    if (lock) {
-      // Lock profile with 24-hour expiry
-      const expiry = new Date();
-      expiry.setHours(expiry.getHours() + 24);
-      await runQuery(
-        "UPDATE profiles SET is_locked = TRUE, lock_expiry = ? WHERE id = ?",
-        [expiry.toISOString(), id]
-      );
-    } else {
-      // Unlock profile
-      await runQuery(
-        "UPDATE profiles SET is_locked = FALSE, lock_expiry = NULL WHERE id = ?",
-        [id]
-      );
-    }
-    res.json({
-      success: true,
-      message: `Profile ${lock ? "locked" : "unlocked"} successfully`,
-    });
-  } catch (err) {
-    console.error("Lock/unlock error:", err);
-    res
-      .status(500)
-      .json({ success: false, message: "Server error: " + err.message });
-  }
-});
-
-// Delete Profile (Manager Only)
-app.delete("/profiles/:id", authenticateToken, async (req, res) => {
-  if (req.user.role !== "manager") {
-    return res
-      .status(403)
-      .json({ success: false, message: "Manager access required" });
-  }
-  const { id } = req.params;
-
-  // Use a transaction to ensure database consistency
-  const dbTransaction = async () => {
-    return new Promise((resolve, reject) => {
-      db.serialize(() => {
-        db.run("BEGIN TRANSACTION");
-
-        db.get(
-          "SELECT * FROM profiles WHERE id = ?",
-          [id],
-          async (err, profile) => {
-            if (err) {
-              db.run("ROLLBACK");
-              return reject(err);
-            }
-
-            if (!profile) {
-              db.run("ROLLBACK");
-              return reject(new Error("Profile not found"));
-            }
-
-            db.get(
-              "SELECT * FROM users WHERE id = ?",
-              [profile.user_id],
-              async (err, user) => {
-                if (err) {
-                  db.run("ROLLBACK");
-                  return reject(err);
-                }
-
-                if (!user) {
-                  db.run("ROLLBACK");
-                  return reject(new Error("User not found"));
-                }
-
-                // Delete database records first to maintain referential integrity
-                db.run(
-                  "DELETE FROM profiles WHERE id = ?",
-                  [id],
-                  async (err) => {
-                    if (err) {
-                      db.run("ROLLBACK");
-                      return reject(err);
-                    }
-
-                    db.run(
-                      "DELETE FROM users WHERE id = ?",
-                      [profile.user_id],
-                      async (err) => {
-                        if (err) {
-                          db.run("ROLLBACK");
-                          return reject(err);
-                        }
-
-                        db.run("COMMIT", (err) => {
-                          if (err) {
-                            db.run("ROLLBACK");
-                            return reject(err);
-                          }
-                          resolve({ profile, user });
-                        });
-                      }
-                    );
-                  }
-                );
-              }
-            );
-          }
-        );
-      });
-    });
-  };
-
-  try {
-    // Execute transaction
-    const { profile } = await dbTransaction();
-
-    // After successful database deletion, clean up files
-    const fileFields = [
-      "profile_pic",
-      "tenth_cert",
-      "twelfth_cert",
-      "appointment_order",
-      "joining_report",
-      "ug_degree",
-      "pg_ms_consolidated",
-      "phd_degree",
-      "journals_list",
-      "conferences_list",
-      "au_supervisor_letter",
-      "fdp_workshops_webinars",
-      "nptel_coursera",
-      "invited_talks",
-      "projects_sanction",
-      "consultancy",
-      "patent",
-      "community_cert",
-      "aadhar",
-      "pan",
-    ];
-
-    // Delete files asynchronously after database transaction completes
-    const fileDeletePromises = [];
-    for (const field of fileFields) {
-      if (profile[field]) {
-        // Fix file path construction - profile[field] already contains '/uploads/' prefix
-        const filePath = path.join(__dirname, profile[field]);
-        fileDeletePromises.push(
-          fs.promises
-            .unlink(filePath)
-            .then(() => console.log(`Deleted file: ${filePath}`))
-            .catch((err) =>
-              console.warn(
-                `Warning: Could not delete file ${filePath}:`,
-                err.message
-              )
-            )
-        );
-      }
-    }
-
-    // Wait for all file deletions to complete
-    await Promise.allSettled(fileDeletePromises);
-
-    console.log(
-      `Successfully deleted faculty profile ${id} and associated files`
-    );
-    res.json({
-      success: true,
-      message: "Profile and associated files deleted successfully",
-    });
-  } catch (err) {
-    console.error("Delete profile error:", err);
-    res
-      .status(500)
-      .json({ success: false, message: "Server error: " + err.message });
-  }
-});
-
-// Reset Password
-app.post("/reset-password", async (req, res) => {
-  const { phone_number, new_password } = req.body;
-  if (!new_password) {
-    return res.status(400).json({
-      success: false,
-      message: "New password is required",
-    });
-  }
-  try {
-    const user = await getQuery("SELECT id FROM users WHERE phone_number = ?", [
-      phone_number,
-    ]);
-    if (!user) {
-      console.log(
-        `Reset password failed: No user found for phone ${phone_number}`
-      );
-      return res.status(404).json({
-        success: false,
-        message: "User not found with this phone number",
-      });
-    }
-    const newHash = await bcrypt.hash(new_password, 10);
-    await runQuery("UPDATE users SET password = ? WHERE id = ?", [
-      newHash,
-      user.id,
-    ]);
-    console.log(`Password reset for user with phone ${phone_number}`);
-    res.json({ success: true, message: "Password reset successfully" });
-  } catch (err) {
-    console.error("Reset password error:", err);
-    res
-      .status(500)
-      .json({ success: false, message: "Server error: " + err.message });
-  }
-});
-
-// Start Server
-// Run orphaned files cleanup on server start
-cleanupOrphanedFiles();
-
-// Schedule periodic cleanup every 24 hours
-setInterval(cleanupOrphanedFiles, 24 * 60 * 60 * 1000);
 
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT} - SSN College of Engineering`);
+  console.log(`Server is running on port ${PORT}`);
 });
