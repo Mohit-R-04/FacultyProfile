@@ -81,6 +81,14 @@
             <option value="Network Security">Network Security</option>
             <option value="IoT">IoT</option>
           </select>
+          <select id="experience-filter" class="input-select glassy-select">
+            <option value="">All Experience Levels</option>
+            <option value="0-5">0-5 years</option>
+            <option value="5-10">5-10 years</option>
+            <option value="10-15">10-15 years</option>
+            <option value="15-20">15-20 years</option>
+            <option value="20+">20+ years</option>
+          </select>
         </div>
         <button id="reset-filters" class="btn glassy-btn btn-secondary">
           Reset Filters
@@ -243,6 +251,21 @@
               class="input glassy-input"
             />
           </div>
+          <!-- Profile Picture Preview -->
+          <div class="form-group">
+            <label>Current Profile Picture</label>
+            <img id="profile-pic-preview" src="" alt="Profile Picture Preview" style="max-width: 200px; display: none; margin: 10px 0; border-radius: 5px;" />
+          </div>
+          <div class="form-group">
+            <label for="edit-profile-pic">Profile Picture</label>
+            <input
+              type="file"
+              id="edit-profile-pic"
+              name="profile_pic"
+              accept="image/*"
+              class="input glassy-input"
+            />
+          </div>
           <!-- Department hidden, enforced as IT on server -->
           <div class="form-group hidden">
             <label for="edit-department">Department</label>
@@ -289,26 +312,6 @@
               type="date"
               id="edit-date_of_joining"
               name="date_of_joining"
-              class="input glassy-input"
-            />
-          </div>
-          <div class="form-group">
-            <label for="edit-experience">Experience</label>
-            <input
-              type="text"
-              id="edit-experience"
-              name="experience"
-              class="input glassy-input"
-              placeholder="e.g., 5 years teaching"
-            />
-          </div>
-          <div class="form-group">
-            <label for="edit-pic">Profile Picture</label>
-            <input
-              type="file"
-              id="edit-pic"
-              name="profile_pic"
-              accept="image/*"
               class="input glassy-input"
             />
           </div>

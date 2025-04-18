@@ -1,5 +1,5 @@
 const API_URL =
-  window.location.hostname === "localhost" ? "http://localhost:3000" : "";
+  window.location.hostname === "localhost" ? "http://localhost:3001" : "";
 console.log("App running on:", API_URL);
 const { jsPDF } = window.jspdf;
 
@@ -28,6 +28,7 @@ const elements = {
   closeEdit: document.getElementById("close-edit"),
   searchBar: document.getElementById("search-bar"),
   roleFilter: document.getElementById("role-filter"),
+  experienceFilter: document.getElementById("experience-filter"),
   resetFilters: document.getElementById("reset-filters"),
   toastContainer: document.getElementById("toast-container"),
   totalStaff: document.getElementById("total-staff"),
@@ -289,6 +290,20 @@ function classifyRole(bio) {
   return "Assistant Professor"; // Default to Assistant Professor if no match
 }
 
+// Helper function to get role priority for sorting
+function getRolePriority(role) {
+  switch (role) {
+    case "Professor":
+      return 1;
+    case "Associate Professor":
+      return 2;
+    case "Assistant Professor":
+      return 3;
+    default:
+      return 4;
+  }
+}
+
 // Load Profiles (Public Access)
 async function loadProfiles() {
   try {
@@ -313,7 +328,13 @@ function renderProfiles(profileList) {
       '<div class="grid-placeholder">No IT faculty profiles found</div>';
     return;
   }
-  profileList.forEach((profile) => {
+  
+  // Sort profiles by role
+  const sortedProfiles = [...profileList].sort((a, b) => {
+    return getRolePriority(a.role) - getRolePriority(b.role);
+  });
+
+  sortedProfiles.forEach((profile) => {
     const card = document.createElement("div");
     card.className = "profile-card glassy";
     const isOwnProfile =
@@ -338,7 +359,6 @@ function renderProfiles(profileList) {
       }" alt="${profile.name}" class="profile-avatar">
       <h3>${profile.name || "Unknown"}</h3>
       <p><strong>Qualifications:</strong> ${profile.qualifications || "N/A"}</p>
-      <p><strong>Experience:</strong> ${profile.experience || "N/A"}</p>
       <p>${
         profile.bio ? profile.bio.substring(0, 50) + "..." : "No bio available"
       }</p>
@@ -479,7 +499,13 @@ async function approveEdit(id) {
 
 function renderAdminProfiles(profileList) {
   elements.adminProfiles.innerHTML = "";
-  profileList.forEach((profile) => {
+  
+  // Sort profiles by role
+  const sortedProfiles = [...profileList].sort((a, b) => {
+    return getRolePriority(a.role) - getRolePriority(b.role);
+  });
+
+  sortedProfiles.forEach((profile) => {
     const card = document.createElement("div");
     card.className = "profile-card glassy";
     const canEdit =
@@ -494,7 +520,6 @@ function renderAdminProfiles(profileList) {
       }" alt="${profile.name}" class="profile-avatar">
       <h3>${profile.name || "Unknown"}</h3>
       <p><strong>Qualifications:</strong> ${profile.qualifications || "N/A"}</p>
-      <p><strong>Experience:</strong> ${profile.experience || "N/A"}</p>
       <p>${
         profile.bio ? profile.bio.substring(0, 50) + "..." : "No bio available"
       }</p>
@@ -553,19 +578,93 @@ async function editProfile(id) {
     showToast("Unauthorized: You can only edit your own profile", "error");
     return;
   }
-  console.log("Editing profile:", profile, "by user:", currentUser);
-  elements.editModal.classList.remove("hidden");
-  elements.editTitle.innerHTML = `<i class="fas fa-user-edit"></i> Edit Faculty Profile`;
-  elements.profileForm.id.value = id;
-  elements.profileForm.name.value = profile.name || "";
-  elements.profileForm.bio.value = profile.bio || "";
-  elements.profileForm.qualifications.value = profile.qualifications || "";
-  elements.profileForm.date_of_joining.value = profile.date_of_joining || "";
-  elements.profileForm.experience.value = profile.experience || "";
-  elements.profileForm.research.value = profile.research || "";
-  elements.profileForm.profile_pic.value = "";
-  elements.profileForm.tenth_cert.value = "";
-  // Reset other file inputs (omitted for brevity)
+
+  try {
+    // Fetch user data
+    const userRes = await fetch(`${API_URL}/users/${profile.user_id}`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+    });
+    const userData = await userRes.json();
+    
+    if (!userData.success) {
+      showToast("Failed to fetch user data", "error");
+      return;
+    }
+
+    console.log("Editing profile:", profile, "user data:", userData, "by user:", currentUser);
+    elements.editModal.classList.remove("hidden");
+    elements.editTitle.innerHTML = `<i class="fas fa-user-edit"></i> Edit Faculty Profile`;
+    
+    // Set form values
+    elements.profileForm.id.value = id;
+    elements.profileForm.name.value = profile.name || "";
+    elements.profileForm.bio.value = profile.bio || "";
+    elements.profileForm.qualifications.value = profile.qualifications || "";
+    
+    // Handle date of joining
+    if (profile.date_of_joining) {
+      try {
+        const date = new Date(profile.date_of_joining);
+        if (!isNaN(date.getTime())) {
+          const year = date.getFullYear();
+          const month = String(date.getMonth() + 1).padStart(2, '0');
+          const day = String(date.getDate()).padStart(2, '0');
+          elements.profileForm.date_of_joining.value = `${year}-${month}-${day}`;
+        } else {
+          elements.profileForm.date_of_joining.value = "";
+        }
+      } catch (err) {
+        console.error("Error formatting date:", err);
+        elements.profileForm.date_of_joining.value = "";
+      }
+    } else {
+      elements.profileForm.date_of_joining.value = "";
+    }
+    
+    elements.profileForm.research.value = profile.research || "";
+    
+    // Set user data
+    elements.profileForm.email.value = userData.user.email || "";
+    elements.profileForm.phone_number.value = userData.user.phone_number || "";
+    
+    // Show phone number field but hide email field for existing profiles
+    elements.profileForm.querySelector("#email-group").classList.add("hidden");
+    elements.profileForm.querySelector("#phone-group").classList.remove("hidden");
+    
+    // Show existing profile picture if it exists
+    if (profile.profile_pic) {
+      const profilePicPreview = document.getElementById("profile-pic-preview");
+      if (profilePicPreview) {
+        profilePicPreview.src = `${API_URL}${profile.profile_pic}`;
+        profilePicPreview.style.display = "block";
+      }
+    }
+    
+    // Reset file inputs
+    elements.profileForm.profile_pic.value = "";
+    elements.profileForm.tenth_cert.value = "";
+    elements.profileForm.twelfth_cert.value = "";
+    elements.profileForm.appointment_order.value = "";
+    elements.profileForm.joining_report.value = "";
+    elements.profileForm.ug_degree.value = "";
+    elements.profileForm.pg_ms_consolidated.value = "";
+    elements.profileForm.phd_degree.value = "";
+    elements.profileForm.journals_list.value = "";
+    elements.profileForm.conferences_list.value = "";
+    elements.profileForm.au_supervisor_letter.value = "";
+    elements.profileForm.fdp_workshops_webinars.value = "";
+    elements.profileForm.nptel_coursera.value = "";
+    elements.profileForm.invited_talks.value = "";
+    elements.profileForm.projects_sanction.value = "";
+    elements.profileForm.consultancy.value = "";
+    elements.profileForm.patent.value = "";
+    elements.profileForm.community_cert.value = "";
+    elements.profileForm.aadhar.value = "";
+    elements.profileForm.pan.value = "";
+  } catch (err) {
+    console.error("Error loading profile data:", err);
+    showToast("Failed to load profile data", "error");
+  }
 }
 
 // Delete Profile (Manager Only)
@@ -600,26 +699,35 @@ if (elements.profileForm) {
   elements.profileForm.addEventListener("submit", async (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
+    const profileId = formData.get("id");
 
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch(`${API_URL}/profiles`, {
-        method: "POST",
+      const method = profileId ? "PUT" : "POST";
+      const url = profileId ? `${API_URL}/profiles/${profileId}` : `${API_URL}/profiles`;
+      
+      // Remove email from formData if editing existing profile
+      if (profileId) {
+        formData.delete("email");
+      }
+      
+      const res = await fetch(url, {
+        method,
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
       });
 
       const data = await res.json();
       if (data.success) {
-        showToast("Faculty added successfully");
+        showToast(profileId ? "Profile updated successfully" : "Faculty added successfully");
         elements.editModal.classList.add("hidden");
         loadAdminProfiles();
       } else {
-        showToast(data.message || "Failed to add faculty", "error");
+        showToast(data.message || (profileId ? "Failed to update profile" : "Failed to add faculty"), "error");
       }
     } catch (err) {
-      console.error("Add faculty error:", err);
-      showToast("Failed to add faculty", "error");
+      console.error(profileId ? "Update profile error:" : "Add faculty error:", err);
+      showToast(profileId ? "Failed to update profile" : "Failed to add faculty", "error");
     }
   });
 }
@@ -740,11 +848,14 @@ if (elements.roleFilter)
   elements.roleFilter.addEventListener("change", filterProfiles);
 if (elements.researchFilter)
   elements.researchFilter.addEventListener("change", filterProfiles);
+if (elements.experienceFilter)
+  elements.experienceFilter.addEventListener("change", filterProfiles);
 if (elements.resetFilters) {
   elements.resetFilters.addEventListener("click", () => {
     elements.searchBar.value = "";
     elements.roleFilter.value = "";
     elements.researchFilter.value = "";
+    elements.experienceFilter.value = "";
     if (currentUser && currentUser.role === "manager") {
       loadAdminProfiles();
     } else {
@@ -757,6 +868,7 @@ function filterProfiles() {
   const searchTerm = elements.searchBar.value.toLowerCase();
   const role = elements.roleFilter.value;
   const researchDomain = elements.researchFilter.value.toLowerCase();
+  const experienceRange = elements.experienceFilter.value;
 
   const filtered = profiles.filter((profile) => {
     const matchesSearch =
@@ -768,8 +880,9 @@ function filterProfiles() {
     const matchesResearch = researchDomain
       ? (profile.research || "").toLowerCase().includes(researchDomain)
       : true;
+    const matchesExperience = matchesExperienceRange(profile.date_of_joining, experienceRange);
 
-    return matchesSearch && matchesRole && matchesResearch;
+    return matchesSearch && matchesRole && matchesResearch && matchesExperience;
   });
 
   if (currentUser && currentUser.role === "manager") {
@@ -832,3 +945,35 @@ async function initialize() {
 }
 
 initialize();
+
+// Helper function to calculate years of experience
+function calculateExperience(dateOfJoining) {
+  if (!dateOfJoining) return 0;
+  const joiningDate = new Date(dateOfJoining);
+  const today = new Date();
+  const diffTime = Math.abs(today - joiningDate);
+  const diffYears = Math.floor(diffTime / (1000 * 60 * 60 * 24 * 365));
+  return diffYears;
+}
+
+// Helper function to check if experience matches the selected range
+function matchesExperienceRange(experience, range) {
+  if (!range) return true;
+  
+  const years = calculateExperience(experience);
+  
+  switch (range) {
+    case "0-5":
+      return years >= 0 && years < 5;
+    case "5-10":
+      return years >= 5 && years < 10;
+    case "10-15":
+      return years >= 10 && years < 15;
+    case "15-20":
+      return years >= 15 && years < 20;
+    case "20+":
+      return years >= 20;
+    default:
+      return true;
+  }
+}

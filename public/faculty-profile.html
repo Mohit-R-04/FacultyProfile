@@ -326,16 +326,22 @@
               id="edit-name"
               name="name"
               required
-              class="input"
+              class="input glassy-input"
             />
           </div>
+          <!-- Profile Picture Preview -->
           <div class="form-group">
-            <label for="edit-department">Department</label>
+            <label>Current Profile Picture</label>
+            <img id="profile-pic-preview" src="" alt="Profile Picture Preview" style="max-width: 200px; display: none; margin: 10px 0; border-radius: 5px;" />
+          </div>
+          <div class="form-group">
+            <label for="edit-profile-pic">Profile Picture</label>
             <input
-              type="text"
-              id="edit-department"
-              name="department"
-              class="input"
+              type="file"
+              id="edit-profile-pic"
+              name="profile_pic"
+              accept="image/*"
+              class="input glassy-input"
             />
           </div>
           <div class="form-group">
@@ -373,16 +379,6 @@
               type="text"
               id="edit-research"
               name="research"
-              class="input"
-            />
-          </div>
-          <div class="form-group">
-            <label for="edit-pic">Profile Picture</label>
-            <input
-              type="file"
-              id="edit-pic"
-              name="profile_pic"
-              accept="image/*"
               class="input"
             />
           </div>

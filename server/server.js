@@ -116,7 +116,7 @@ SSN Faculty Profile System`,
 };
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
 const JWT_SECRET =
   process.env.JWT_SECRET || "your-very-secure-secret-key-1234567890";
 
@@ -760,15 +760,10 @@ app.put(
   authenticateToken,
   async (req, res, next) => {
     const { id } = req.params;
-
     try {
-      const profile = await getQuery("SELECT * FROM profiles WHERE id = ?", [
-        id,
-      ]);
+      const profile = await getQuery("SELECT * FROM profiles WHERE id = ?", [id]);
       if (!profile) {
-        return res
-          .status(404)
-          .json({ success: false, message: "Profile not found" });
+        return res.status(404).json({ success: false, message: "Profile not found" });
       }
 
       if (profile.is_locked) {
@@ -778,8 +773,7 @@ app.put(
         if (now < expiry && req.user.role !== "manager") {
           return res.status(403).json({
             success: false,
-            message:
-              "Profile is locked. Please request edit access from admin.",
+            message: "Profile is locked. Please request edit access from admin.",
           });
         }
 
@@ -792,9 +786,7 @@ app.put(
       }
       next();
     } catch (err) {
-      res
-        .status(500)
-        .json({ success: false, message: "Server error: " + err.message });
+      res.status(500).json({ success: false, message: "Server error: " + err.message });
     }
   },
   upload.fields([
@@ -817,7 +809,7 @@ app.put(
     { name: "patent", maxCount: 1 },
     { name: "community_cert", maxCount: 1 },
     { name: "aadhar", maxCount: 1 },
-    { name: "pan", maxCount: 1 },
+    { name: "pan", maxCount: 1 }
   ]),
   async (req, res) => {
     const { id } = req.params;
@@ -911,23 +903,49 @@ app.put(
 
       // Update user information if provided (only email and phone number)
       if (email || phone_number) {
-        const userUpdateFields = [];
-        const userUpdateParams = [];
-        
-        if (email) {
-          userUpdateFields.push("email = ?");
-          userUpdateParams.push(email);
-        }
-        
-        if (phone_number) {
-          userUpdateFields.push("phone_number = ?");
-          userUpdateParams.push(phone_number);
-        }
-        
-        if (userUpdateFields.length > 0) {
-          userUpdateParams.push(profile.user_id);
-          const userUpdateQuery = `UPDATE users SET ${userUpdateFields.join(", ")} WHERE id = ?`;
-          await runQuery(userUpdateQuery, userUpdateParams);
+        try {
+          // First check if email exists for another user
+          if (email) {
+            const existingUser = await getQuery(
+              "SELECT id FROM users WHERE email = ? AND id != ?",
+              [email, profile.user_id]
+            );
+            if (existingUser) {
+              return res.status(400).json({
+                success: false,
+                message: "Email already exists for another user"
+              });
+            }
+          }
+
+          // If email check passed, proceed with update
+          const userUpdateFields = [];
+          const userUpdateParams = [];
+          
+          if (email) {
+            userUpdateFields.push("email = ?");
+            userUpdateParams.push(email);
+          }
+          
+          if (phone_number) {
+            userUpdateFields.push("phone_number = ?");
+            userUpdateParams.push(phone_number);
+          }
+          
+          if (userUpdateFields.length > 0) {
+            userUpdateParams.push(profile.user_id);
+            const userUpdateQuery = `UPDATE users SET ${userUpdateFields.join(", ")} WHERE id = ?`;
+            await runQuery(userUpdateQuery, userUpdateParams);
+          }
+        } catch (err) {
+          console.error("User update error:", err);
+          if (err.message.includes("UNIQUE constraint failed: users.email")) {
+            return res.status(400).json({
+              success: false,
+              message: "Email already exists for another user"
+            });
+          }
+          throw err; // Re-throw other errors to be caught by outer catch
         }
       }
 
@@ -1028,8 +1046,8 @@ app.put(
         communityCert,
         aadhar,
         pan,
-        false, //edit_requested
-        id,
+        false, // edit_requested
+        id
       ];
 
       await runQuery(updateQuery, params);
@@ -1045,9 +1063,17 @@ app.put(
       });
     } catch (err) {
       console.error("Update profile error:", err);
-      res
-        .status(500)
-        .json({ success: false, message: "Server error: " + err.message });
+      if (err.message.includes("UNIQUE constraint failed: users.email")) {
+        res.status(400).json({
+          success: false,
+          message: "Email already exists for another user"
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          message: "Server error: " + err.message
+        });
+      }
     }
   }
 );
@@ -1077,6 +1103,21 @@ app.post("/profiles/lock-all", authenticateToken, async (req, res) => {
     res
       .status(500)
       .json({ success: false, message: "Server error: " + err.message });
+  }
+});
+
+// Get User by ID
+app.get("/users/:id", authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const user = await getQuery("SELECT id, email, phone_number, role FROM users WHERE id = ?", [id]);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+    res.json({ success: true, user });
+  } catch (err) {
+    console.error("Get user error:", err);
+    res.status(500).json({ success: false, message: "Server error: " + err.message });
   }
 });
 

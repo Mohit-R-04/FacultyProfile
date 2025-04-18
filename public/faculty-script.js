@@ -1,5 +1,5 @@
 const API_URL =
-  window.location.hostname === "localhost" ? "http://localhost:3000" : "";
+  window.location.hostname === "localhost" ? "http://localhost:3001" : "";
 const { jsPDF } = window.jspdf;
 
 // DOM Elements
@@ -17,7 +17,6 @@ const elements = {
   facultyBio: document.getElementById("faculty-bio"),
   facultyResearch: document.getElementById("faculty-research"),
   facultyQual: document.getElementById("faculty-qual"),
-  facultyExp: document.getElementById("faculty-exp"),
   facultyTenthCert: document.getElementById("faculty-tenth-cert"),
   facultyTwelfthCert: document.getElementById("faculty-twelfth-cert"),
   facultyAppointmentOrder: document.getElementById("faculty-appointment-order"),
@@ -265,7 +264,6 @@ async function loadFacultyProfile() {
       "qualifications-item",
       currentProfile.qualifications
     );
-    setField("faculty-exp", "experience-item", currentProfile.experience);
 
     setLink("faculty-tenth-cert", "tenth-cert-item", currentProfile.tenth_cert);
     setLink(
@@ -394,7 +392,6 @@ function hideAllFields() {
     "bio-item",
     "research-item",
     "qualifications-item",
-    "experience-item",
     "tenth-cert-item",
     "twelfth-cert-item",
     "appointment-order-item",
@@ -443,10 +440,10 @@ if (elements.editBtn) {
     elements.profileForm.name.value = currentProfile.name || "";
     elements.profileForm.department.value = currentProfile.department || "IT";
     elements.profileForm.bio.value = currentProfile.bio || "";
-    elements.profileForm.qualifications.value =
-      currentProfile.qualifications || "";
-    elements.profileForm.experience.value = currentProfile.experience || "";
+    elements.profileForm.qualifications.value = currentProfile.qualifications || "";
     elements.profileForm.research.value = currentProfile.research || "";
+    elements.profileForm.email.value = currentProfile.email || "";
+    elements.profileForm.phone_number.value = currentProfile.phone_number || "";
     elements.profileForm.profile_pic.value = "";
     elements.profileForm.tenth_cert.value = "";
     elements.profileForm.twelfth_cert.value = "";
@@ -537,7 +534,6 @@ if (elements.exportPdf) {
       `Department: ${currentProfile.department || ""}`,
       `Bio: ${currentProfile.bio || ""}`,
       `Qualifications: ${currentProfile.qualifications || ""}`,
-      `Experience: ${currentProfile.experience || ""}`,
       `Research Interests: ${currentProfile.research || ""}`,
       `10th Certificate: ${currentProfile.tenth_cert || ""}`,
       `12th Certificate: ${currentProfile.twelfth_cert || ""}`,
