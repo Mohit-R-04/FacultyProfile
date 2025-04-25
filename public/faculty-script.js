@@ -49,6 +49,7 @@ const elements = {
   exportPdf: document.getElementById("export-pdf"),
   closeEdit: document.getElementById("close-edit"),
   toastContainer: document.getElementById("toast-container"),
+  deleteBtn: document.getElementById("delete-btn"),
 };
 
 // State Variables
@@ -70,6 +71,51 @@ function showToast(message, type = "success") {
     toast.classList.remove("show");
     setTimeout(() => toast.remove(), 300);
   }, 3000);
+}
+
+async function loadEditRequests() {
+  try {
+    const response = await fetch(`${API_URL}/edit-requests`, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("token")}`,
+      },
+      cache: "no-store", // Ensure no caching
+    });
+    const data = await response.json();
+    const requestsContainer = document.getElementById(
+      "edit-requests-container"
+    );
+    if (requestsContainer) {
+      requestsContainer.innerHTML = ""; // Clear old requests
+      if (data.requests && data.requests.length > 0) {
+        data.requests.forEach((req) => {
+          // Render each request card (pseudo-code)
+          const card = document.createElement("div");
+          card.className = "request-card glassy";
+          card.innerHTML = `
+            <div class="request-info">
+              <h4>${req.name}</h4>
+              <p>Department: ${req.department}</p>
+              <p>Role: ${req.role}</p>
+              <p>Date of Joining: ${req.date_of_joining || "Not specified"}</p>
+            </div>
+            <div class="request-actions">
+              <button class="btn glassy-btn btn-success" onclick="approveEdit(${
+                req.id
+              })">
+                Unlock Profile
+              </button>
+            </div>
+          `;
+          requestsContainer.appendChild(card);
+        });
+      } else {
+        requestsContainer.innerHTML = "<p>No edit requests.</p>";
+      }
+    }
+  } catch (err) {
+    console.error("Failed to load edit requests:", err);
+  }
 }
 
 // Validate Token and Fetch User Info
@@ -337,18 +383,20 @@ async function loadFacultyProfile() {
     setLink("faculty-aadhar", "aadhar-item", currentProfile.aadhar);
     setLink("faculty-pan", "pan-item", currentProfile.pan);
 
-    if (
+    const userCanEdit =
       currentUser &&
       (currentUser.id === String(currentProfile.user_id) ||
-        currentUser.role === "manager")
-    ) {
-      console.log(
-        "[loadFacultyProfile] Showing edit button for:",
-        currentUser.id
-      );
+        currentUser.role === "manager");
+    if (currentProfile.is_locked && !userCanEdit) {
+      elements.editBtn.textContent = "Request Edit";
       elements.editBtn.classList.remove("hidden");
+    } else if (userCanEdit) {
+      elements.editBtn.textContent = "Edit Profile";
+      elements.editBtn.classList.remove("hidden");
+      elements.deleteBtn.classList.remove("hidden"); // Show delete button
     } else {
       elements.editBtn.classList.add("hidden");
+      elements.deleteBtn.classList.add("hidden"); // Hide delete button
     }
   } catch (err) {
     showToast("Failed to load profile: " + err.message, "error");
@@ -440,7 +488,8 @@ if (elements.editBtn) {
     elements.profileForm.name.value = currentProfile.name || "";
     elements.profileForm.department.value = currentProfile.department || "IT";
     elements.profileForm.bio.value = currentProfile.bio || "";
-    elements.profileForm.qualifications.value = currentProfile.qualifications || "";
+    elements.profileForm.qualifications.value =
+      currentProfile.qualifications || "";
     elements.profileForm.research.value = currentProfile.research || "";
     elements.profileForm.email.value = currentProfile.email || "";
     elements.profileForm.phone_number.value = currentProfile.phone_number || "";
@@ -511,9 +560,11 @@ if (elements.profileForm) {
 }
 
 if (elements.closeEdit) {
-  elements.closeEdit.addEventListener("click", () => {
-    console.log("[closeEdit] Closing modal");
-    elements.editModal.classList.add("hidden");
+  elements.closeEdit.addEventListener("click", function (e) {
+    e.preventDefault(); // Prevent form submission
+    // Optionally reset the form to original values here
+    document.getElementById("edit-modal").classList.add("hidden");
+    // Do NOT show "Changes are saved" toast
   });
 }
 
@@ -633,6 +684,10 @@ async function fetchCurrentUser(token) {
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
+    const contentType = response.headers.get("content-type");
+    if (!contentType || !contentType.includes("application/json")) {
+      throw new Error("Expected JSON response but got: " + contentType);
+    }
     return await response.json();
   } catch (error) {
     console.error("Error fetching current user:", error);
@@ -640,4 +695,2277 @@ async function fetchCurrentUser(token) {
   }
 }
 
-initialize();
+document.addEventListener("DOMContentLoaded", function () {
+  const form = document.getElementById("facultyForm");
+  const preview = document.getElementById("preview");
+  const fileInput = document.getElementById("profile_picture");
+
+  // Preview image before upload
+  fileInput.addEventListener("change", function (e) {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        preview.src = e.target.result;
+        preview.style.display = "block";
+      };
+      reader.readAsDataURL(file);
+    }
+  });
+
+  // Form submission
+  form.addEventListener("submit", async function (e) {
+    e.preventDefault();
+
+    if (!form.checkValidity()) {
+      e.stopPropagation();
+      form.classList.add("was-validated");
+      return;
+    }
+
+    const formData = new FormData(form);
+
+    try {
+      const response = await fetch("/api/faculty", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        showNotification(
+          "Success!",
+          "Faculty profile has been updated.",
+          "success"
+        );
+        form.classList.add("submit-success");
+        setTimeout(() => {
+          form.classList.remove("submit-success");
+        }, 500);
+      } else {
+        throw new Error("Failed to update profile");
+      }
+    } catch (error) {
+      showNotification(
+        "Error!",
+        "Failed to update profile. Please try again.",
+        "error"
+      );
+    }
+  });
+
+  // Notification function
+  function showNotification(title, message, type) {
+    const notification = document.createElement("div");
+    notification.className = `alert alert-${
+      type === "success" ? "success" : "danger"
+    } notification`;
+    notification.innerHTML = `
+            <strong>${title}</strong> ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        `;
+    document
+      .querySelector(".container")
+      .insertBefore(notification, document.querySelector(".card"));
+
+    setTimeout(() => {
+      notification.remove();
+    }, 5000);
+  }
+});
+
+// Add this after the loadFacultyProfile function or near your other event listeners
+// Delete Profile
+if (elements.deleteBtn) {
+  elements.deleteBtn.addEventListener("click", async () => {
+    console.log("[deleteBtn] Clicked, user:", currentUser);
+    if (!currentUser) {
+      showToast("Please log in to delete", "error");
+      elements.loginModal.classList.remove("hidden");
+      return;
+    }
+
+    if (!currentProfile) {
+      showToast("No profile to delete", "error");
+      return;
+    }
+
+    if (
+      currentUser.id !== String(currentProfile.user_id) &&
+      currentUser.role !== "manager"
+    ) {
+      showToast("Unauthorized to delete this profile", "error");
+      return;
+    }
+
+    if (
+      !confirm(
+        `Are you sure you want to delete ${currentProfile.name}'s profile? This action cannot be undone.`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_URL}/profiles/${facultyId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!res.ok) {
+        throw new Error(`Server returned ${res.status}: ${res.statusText}`);
+      }
+
+      const data = await res.json();
+      console.log("[deleteProfile] Response:", JSON.stringify(data, null, 2));
+
+      if (data.success) {
+        showToast(`Profile deleted: ${currentProfile.name}`);
+        // Redirect to the main page after successful deletion
+        setTimeout(() => {
+          window.location.href = "/index.html";
+        }, 1000);
+      } else {
+        throw new Error(data.message || "Unknown error");
+      }
+    } catch (err) {
+      showToast("Delete error: " + err.message, "error");
+      console.error("[deleteProfile] Error:", err);
+    }
+  });
+}
+
+// Add this with your other event listeners
+if (elements.deleteBtn) {
+  elements.deleteBtn.addEventListener("click", () => {
+    if (!currentUser) {
+      showToast("Please log in to delete profile", "error");
+      elements.loginModal.classList.remove("hidden");
+      return;
+    }
+
+    if (!currentProfile) {
+      showToast("No profile selected", "error");
+      return;
+    }
+
+    if (
+      currentUser.role !== "manager" &&
+      currentUser.id !== String(currentProfile.user_id)
+    ) {
+      showToast("Unauthorized to delete this profile", "error");
+      return;
+    }
+
+    deleteProfile(currentProfile.id);
+  });
+}
+
+// Event Listeners
+if (elements.deleteBtn) {
+  elements.deleteBtn.addEventListener("click", () => {
+    if (currentProfile && currentProfile.id) {
+      deleteProfile(currentProfile.id);
+    }
+  });
+}
+
+async function approveEdit(profileId) {
+  try {
+    const response = await fetch(
+      `${API_URL}/profiles/${profileId}/approve-edit`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error("Server response:", errorData);
+      throw new Error(errorData || "Failed to approve edit");
+    }
+
+    const data = await response.json();
+    if (data.success) {
+      showToast("Edit request approved successfully", "success");
+      await loadFacultyProfile(); // Reload the profile to reflect changes
+      // Refresh the edit requests list after approval
+      if (typeof loadEditRequests === "function") {
+        await loadEditRequests();
+      }
+    } else {
+      showToast(data.message || "Failed to approve edit", "error");
+    }
+  } catch (err) {
+    console.error("Approve edit error:", err);
+    showToast("Failed to approve edit: " + err.message, "error");
+  }
+}
+
+async function requestEdit() {
+  if (!currentUser || !facultyId) {
+    showToast("You must be logged in to request edits", "error");
+    return;
+  }
+
+  try {
+    const response = await fetch(
+      `${API_URL}/profiles/${facultyId}/request-edit`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error("Server response:", errorData);
+      throw new Error(errorData || "Failed to request edit");
+    }
+
+    const data = await response.json();
+    if (data.success) {
+      showToast("Edit request sent successfully", "success");
+      await loadFacultyProfile(); // Reload the profile to reflect changes
+    } else {
+      showToast(data.message || "Failed to request edit", "error");
+    }
+  } catch (err) {
+    console.error("Request edit error:", err);
+    showToast("Failed to request edit: " + err.message, "error");
+  }
+}
+
+// Add event listener for the request edit button
+if (elements.editBtn) {
+  elements.editBtn.addEventListener("click", async () => {
+    if (currentUser && currentUser.role === "staff") {
+      await requestEdit();
+    } else {
+      elements.editModal.classList.remove("hidden");
+    }
+  });
+}
+
+// Event Listeners
+if (elements.deleteBtn) {
+  elements.deleteBtn.addEventListener("click", () => {
+    if (currentProfile && currentProfile.id) {
+      deleteProfile(currentProfile.id);
+    }
+  });
+}
+
+async function approveEdit(profileId) {
+  try {
+    const response = await fetch(
+      `${API_URL}/profiles/${profileId}/approve-edit`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error("Server response:", errorData);
+      throw new Error(errorData || "Failed to approve edit");
+    }
+
+    const data = await response.json();
+    if (data.success) {
+      showToast("Edit request approved successfully", "success");
+      await loadFacultyProfile(); // Reload the profile to reflect changes
+      // Refresh the edit requests list after approval
+      if (typeof loadEditRequests === "function") {
+        await loadEditRequests();
+      }
+    } else {
+      showToast(data.message || "Failed to approve edit", "error");
+    }
+  } catch (err) {
+    console.error("Approve edit error:", err);
+    showToast("Failed to approve edit: " + err.message, "error");
+  }
+}
+
+// Add this with your other event listeners
+if (elements.deleteBtn) {
+  elements.deleteBtn.addEventListener("click", () => {
+    if (!currentUser) {
+      showToast("Please log in to delete profile", "error");
+      elements.loginModal.classList.remove("hidden");
+      return;
+    }
+
+    if (!currentProfile) {
+      showToast("No profile selected", "error");
+      return;
+    }
+
+    if (
+      currentUser.role !== "manager" &&
+      currentUser.id !== String(currentProfile.user_id)
+    ) {
+      showToast("Unauthorized to delete this profile", "error");
+      return;
+    }
+
+    deleteProfile(currentProfile.id);
+  });
+}
+
+// Event Listeners
+if (elements.deleteBtn) {
+  elements.deleteBtn.addEventListener("click", () => {
+    if (currentProfile && currentProfile.id) {
+      deleteProfile(currentProfile.id);
+    }
+  });
+}
+
+async function approveEdit(profileId) {
+  try {
+    const response = await fetch(
+      `${API_URL}/profiles/${profileId}/approve-edit`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error("Server response:", errorData);
+      throw new Error(errorData || "Failed to approve edit");
+    }
+
+    const data = await response.json();
+    if (data.success) {
+      showToast("Edit request approved successfully", "success");
+      await loadFacultyProfile(); // Reload the profile to reflect changes
+      // Refresh the edit requests list after approval
+      if (typeof loadEditRequests === "function") {
+        await loadEditRequests();
+      }
+    } else {
+      showToast(data.message || "Failed to approve edit", "error");
+    }
+  } catch (err) {
+    console.error("Approve edit error:", err);
+    showToast("Failed to approve edit: " + err.message, "error");
+  }
+}
+
+async function requestEdit() {
+  if (!currentUser || !facultyId) {
+    showToast("You must be logged in to request edits", "error");
+    return;
+  }
+
+  try {
+    const response = await fetch(
+      `${API_URL}/profiles/${facultyId}/request-edit`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error("Server response:", errorData);
+      throw new Error(errorData || "Failed to request edit");
+    }
+
+    const data = await response.json();
+    if (data.success) {
+      showToast("Edit request sent successfully", "success");
+      await loadFacultyProfile(); // Reload the profile to reflect changes
+    } else {
+      showToast(data.message || "Failed to request edit", "error");
+    }
+  } catch (err) {
+    console.error("Request edit error:", err);
+    showToast("Failed to request edit: " + err.message, "error");
+  }
+}
+
+// Add event listener for the request edit button
+if (elements.editBtn) {
+  elements.editBtn.addEventListener("click", async () => {
+    if (currentUser && currentUser.role === "staff") {
+      await requestEdit();
+    } else {
+      elements.editModal.classList.remove("hidden");
+    }
+  });
+}
+
+// Event Listeners
+if (elements.deleteBtn) {
+  elements.deleteBtn.addEventListener("click", () => {
+    if (currentProfile && currentProfile.id) {
+      deleteProfile(currentProfile.id);
+    }
+  });
+}
+
+async function approveEdit(profileId) {
+  try {
+    const response = await fetch(
+      `${API_URL}/profiles/${profileId}/approve-edit`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error("Server response:", errorData);
+      throw new Error(errorData || "Failed to approve edit");
+    }
+
+    const data = await response.json();
+    if (data.success) {
+      showToast("Edit request approved successfully", "success");
+      await loadFacultyProfile(); // Reload the profile to reflect changes
+      // Refresh the edit requests list after approval
+      if (typeof loadEditRequests === "function") {
+        await loadEditRequests();
+      }
+    } else {
+      showToast(data.message || "Failed to approve edit", "error");
+    }
+  } catch (err) {
+    console.error("Approve edit error:", err);
+    showToast("Failed to approve edit: " + err.message, "error");
+  }
+}
+
+async function requestEdit() {
+  if (!currentUser || !facultyId) {
+    showToast("You must be logged in to request edits", "error");
+    return;
+  }
+
+  try {
+    const response = await fetch(
+      `${API_URL}/profiles/${facultyId}/request-edit`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error("Server response:", errorData);
+      throw new Error(errorData || "Failed to request edit");
+    }
+
+    const data = await response.json();
+    if (data.success) {
+      showToast("Edit request sent successfully", "success");
+      await loadFacultyProfile(); // Reload the profile to reflect changes
+    } else {
+      showToast(data.message || "Failed to request edit", "error");
+    }
+  } catch (err) {
+    console.error("Request edit error:", err);
+    showToast("Failed to request edit: " + err.message, "error");
+  }
+}
+
+// Add event listener for the request edit button
+if (elements.editBtn) {
+  elements.editBtn.addEventListener("click", async () => {
+    if (currentUser && currentUser.role === "staff") {
+      await requestEdit();
+    } else {
+      elements.editModal.classList.remove("hidden");
+    }
+  });
+}
+
+// Event Listeners
+if (elements.deleteBtn) {
+  elements.deleteBtn.addEventListener("click", () => {
+    if (currentProfile && currentProfile.id) {
+      deleteProfile(currentProfile.id);
+    }
+  });
+}
+
+async function approveEdit(profileId) {
+  try {
+    const response = await fetch(
+      `${API_URL}/profiles/${profileId}/approve-edit`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error("Server response:", errorData);
+      throw new Error(errorData || "Failed to approve edit");
+    }
+
+    const data = await response.json();
+    if (data.success) {
+      showToast("Edit request approved successfully", "success");
+      await loadFacultyProfile(); // Reload the profile to reflect changes
+      // Refresh the edit requests list after approval
+      if (typeof loadEditRequests === "function") {
+        await loadEditRequests();
+      }
+    } else {
+      showToast(data.message || "Failed to approve edit", "error");
+    }
+  } catch (err) {
+    console.error("Approve edit error:", err);
+    showToast("Failed to approve edit: " + err.message, "error");
+  }
+}
+
+async function requestEdit() {
+  if (!currentUser || !facultyId) {
+    showToast("You must be logged in to request edits", "error");
+    return;
+  }
+
+  try {
+    const response = await fetch(
+      `${API_URL}/profiles/${facultyId}/request-edit`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error("Server response:", errorData);
+      throw new Error(errorData || "Failed to request edit");
+    }
+
+    const data = await response.json();
+    if (data.success) {
+      showToast("Edit request sent successfully", "success");
+      await loadFacultyProfile(); // Reload the profile to reflect changes
+    } else {
+      showToast(data.message || "Failed to request edit", "error");
+    }
+  } catch (err) {
+    console.error("Request edit error:", err);
+    showToast("Failed to request edit: " + err.message, "error");
+  }
+}
+
+// Add event listener for the request edit button
+if (elements.editBtn) {
+  elements.editBtn.addEventListener("click", async () => {
+    if (currentUser && currentUser.role === "staff") {
+      await requestEdit();
+    } else {
+      elements.editModal.classList.remove("hidden");
+    }
+  });
+}
+
+// Event Listeners
+if (elements.deleteBtn) {
+  elements.deleteBtn.addEventListener("click", () => {
+    if (currentProfile && currentProfile.id) {
+      deleteProfile(currentProfile.id);
+    }
+  });
+}
+
+async function approveEdit(profileId) {
+  try {
+    const response = await fetch(
+      `${API_URL}/profiles/${profileId}/approve-edit`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error("Server response:", errorData);
+      throw new Error(errorData || "Failed to approve edit");
+    }
+
+    const data = await response.json();
+    if (data.success) {
+      showToast("Edit request approved successfully", "success");
+      await loadFacultyProfile(); // Reload the profile to reflect changes
+      // Refresh the edit requests list after approval
+      if (typeof loadEditRequests === "function") {
+        await loadEditRequests();
+      }
+    } else {
+      showToast(data.message || "Failed to approve edit", "error");
+    }
+  } catch (err) {
+    console.error("Approve edit error:", err);
+    showToast("Failed to approve edit: " + err.message, "error");
+  }
+}
+
+async function requestEdit() {
+  if (!currentUser || !facultyId) {
+    showToast("You must be logged in to request edits", "error");
+    return;
+  }
+
+  try {
+    const response = await fetch(
+      `${API_URL}/profiles/${facultyId}/request-edit`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error("Server response:", errorData);
+      throw new Error(errorData || "Failed to request edit");
+    }
+
+    const data = await response.json();
+    if (data.success) {
+      showToast("Edit request sent successfully", "success");
+      await loadFacultyProfile(); // Reload the profile to reflect changes
+    } else {
+      showToast(data.message || "Failed to request edit", "error");
+    }
+  } catch (err) {
+    console.error("Request edit error:", err);
+    showToast("Failed to request edit: " + err.message, "error");
+  }
+}
+
+// Add event listener for the request edit button
+if (elements.editBtn) {
+  elements.editBtn.addEventListener("click", async () => {
+    if (currentUser && currentUser.role === "staff") {
+      await requestEdit();
+    } else {
+      elements.editModal.classList.remove("hidden");
+    }
+  });
+}
+
+// Event Listeners
+if (elements.deleteBtn) {
+  elements.deleteBtn.addEventListener("click", () => {
+    if (currentProfile && currentProfile.id) {
+      deleteProfile(currentProfile.id);
+    }
+  });
+}
+
+async function approveEdit(profileId) {
+  try {
+    const response = await fetch(
+      `${API_URL}/profiles/${profileId}/approve-edit`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error("Server response:", errorData);
+      throw new Error(errorData || "Failed to approve edit");
+    }
+
+    const data = await response.json();
+    if (data.success) {
+      showToast("Edit request approved successfully", "success");
+      await loadFacultyProfile(); // Reload the profile to reflect changes
+      // Refresh the edit requests list after approval
+      if (typeof loadEditRequests === "function") {
+        await loadEditRequests();
+      }
+    } else {
+      showToast(data.message || "Failed to approve edit", "error");
+    }
+  } catch (err) {
+    console.error("Approve edit error:", err);
+    showToast("Failed to approve edit: " + err.message, "error");
+  }
+}
+
+async function requestEdit() {
+  if (!currentUser || !facultyId) {
+    showToast("You must be logged in to request edits", "error");
+    return;
+  }
+
+  try {
+    const response = await fetch(
+      `${API_URL}/profiles/${facultyId}/request-edit`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error("Server response:", errorData);
+      throw new Error(errorData || "Failed to request edit");
+    }
+
+    const data = await response.json();
+    if (data.success) {
+      showToast("Edit request sent successfully", "success");
+      await loadFacultyProfile(); // Reload the profile to reflect changes
+    } else {
+      showToast(data.message || "Failed to request edit", "error");
+    }
+  } catch (err) {
+    console.error("Request edit error:", err);
+    showToast("Failed to request edit: " + err.message, "error");
+  }
+}
+
+// Add event listener for the request edit button
+if (elements.editBtn) {
+  elements.editBtn.addEventListener("click", async () => {
+    if (currentUser && currentUser.role === "staff") {
+      await requestEdit();
+    } else {
+      elements.editModal.classList.remove("hidden");
+    }
+  });
+}
+
+// Event Listeners
+if (elements.deleteBtn) {
+  elements.deleteBtn.addEventListener("click", () => {
+    if (currentProfile && currentProfile.id) {
+      deleteProfile(currentProfile.id);
+    }
+  });
+}
+
+async function approveEdit(profileId) {
+  try {
+    const response = await fetch(
+      `${API_URL}/profiles/${profileId}/approve-edit`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error("Server response:", errorData);
+      throw new Error(errorData || "Failed to approve edit");
+    }
+
+    const data = await response.json();
+    if (data.success) {
+      showToast("Edit request approved successfully", "success");
+      await loadFacultyProfile(); // Reload the profile to reflect changes
+      // Refresh the edit requests list after approval
+      if (typeof loadEditRequests === "function") {
+        await loadEditRequests();
+      }
+    } else {
+      showToast(data.message || "Failed to approve edit", "error");
+    }
+  } catch (err) {
+    console.error("Approve edit error:", err);
+    showToast("Failed to approve edit: " + err.message, "error");
+  }
+}
+
+async function requestEdit() {
+  if (!currentUser || !facultyId) {
+    showToast("You must be logged in to request edits", "error");
+    return;
+  }
+
+  try {
+    const response = await fetch(
+      `${API_URL}/profiles/${facultyId}/request-edit`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error("Server response:", errorData);
+      throw new Error(errorData || "Failed to request edit");
+    }
+
+    const data = await response.json();
+    if (data.success) {
+      showToast("Edit request sent successfully", "success");
+      await loadFacultyProfile(); // Reload the profile to reflect changes
+    } else {
+      showToast(data.message || "Failed to request edit", "error");
+    }
+  } catch (err) {
+    console.error("Request edit error:", err);
+    showToast("Failed to request edit: " + err.message, "error");
+  }
+}
+
+// Add event listener for the request edit button
+if (elements.editBtn) {
+  elements.editBtn.addEventListener("click", async () => {
+    if (currentUser && currentUser.role === "staff") {
+      await requestEdit();
+    } else {
+      elements.editModal.classList.remove("hidden");
+    }
+  });
+}
+
+// Event Listeners
+if (elements.deleteBtn) {
+  elements.deleteBtn.addEventListener("click", () => {
+    if (currentProfile && currentProfile.id) {
+      deleteProfile(currentProfile.id);
+    }
+  });
+}
+
+async function approveEdit(profileId) {
+  try {
+    const response = await fetch(
+      `${API_URL}/profiles/${profileId}/approve-edit`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error("Server response:", errorData);
+      throw new Error(errorData || "Failed to approve edit");
+    }
+
+    const data = await response.json();
+    if (data.success) {
+      showToast("Edit request approved successfully", "success");
+      await loadFacultyProfile(); // Reload the profile to reflect changes
+      // Refresh the edit requests list after approval
+      if (typeof loadEditRequests === "function") {
+        await loadEditRequests();
+      }
+    } else {
+      showToast(data.message || "Failed to approve edit", "error");
+    }
+  } catch (err) {
+    console.error("Approve edit error:", err);
+    showToast("Failed to approve edit: " + err.message, "error");
+  }
+}
+
+async function requestEdit() {
+  if (!currentUser || !facultyId) {
+    showToast("You must be logged in to request edits", "error");
+    return;
+  }
+
+  try {
+    const response = await fetch(
+      `${API_URL}/profiles/${facultyId}/request-edit`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error("Server response:", errorData);
+      throw new Error(errorData || "Failed to request edit");
+    }
+
+    const data = await response.json();
+    if (data.success) {
+      showToast("Edit request sent successfully", "success");
+      await loadFacultyProfile(); // Reload the profile to reflect changes
+    } else {
+      showToast(data.message || "Failed to request edit", "error");
+    }
+  } catch (err) {
+    console.error("Request edit error:", err);
+    showToast("Failed to request edit: " + err.message, "error");
+  }
+}
+
+// Add event listener for the request edit button
+if (elements.editBtn) {
+  elements.editBtn.addEventListener("click", async () => {
+    if (currentUser && currentUser.role === "staff") {
+      await requestEdit();
+    } else {
+      elements.editModal.classList.remove("hidden");
+    }
+  });
+}
+
+// Event Listeners
+if (elements.deleteBtn) {
+  elements.deleteBtn.addEventListener("click", () => {
+    if (currentProfile && currentProfile.id) {
+      deleteProfile(currentProfile.id);
+    }
+  });
+}
+
+async function approveEdit(profileId) {
+  try {
+    const response = await fetch(
+      `${API_URL}/profiles/${profileId}/approve-edit`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error("Server response:", errorData);
+      throw new Error(errorData || "Failed to approve edit");
+    }
+
+    const data = await response.json();
+    if (data.success) {
+      showToast("Edit request approved successfully", "success");
+      await loadFacultyProfile(); // Reload the profile to reflect changes
+      // Refresh the edit requests list after approval
+      if (typeof loadEditRequests === "function") {
+        await loadEditRequests();
+      }
+    } else {
+      showToast(data.message || "Failed to approve edit", "error");
+    }
+  } catch (err) {
+    console.error("Approve edit error:", err);
+    showToast("Failed to approve edit: " + err.message, "error");
+  }
+}
+
+async function requestEdit() {
+  if (!currentUser || !facultyId) {
+    showToast("You must be logged in to request edits", "error");
+    return;
+  }
+
+  try {
+    const response = await fetch(
+      `${API_URL}/profiles/${facultyId}/request-edit`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error("Server response:", errorData);
+      throw new Error(errorData || "Failed to request edit");
+    }
+
+    const data = await response.json();
+    if (data.success) {
+      showToast("Edit request sent successfully", "success");
+      await loadFacultyProfile(); // Reload the profile to reflect changes
+    } else {
+      showToast(data.message || "Failed to request edit", "error");
+    }
+  } catch (err) {
+    console.error("Request edit error:", err);
+    showToast("Failed to request edit: " + err.message, "error");
+  }
+}
+
+// Add event listener for the request edit button
+if (elements.editBtn) {
+  elements.editBtn.addEventListener("click", async () => {
+    if (currentUser && currentUser.role === "staff") {
+      await requestEdit();
+    } else {
+      elements.editModal.classList.remove("hidden");
+    }
+  });
+}
+
+// Event Listeners
+if (elements.deleteBtn) {
+  elements.deleteBtn.addEventListener("click", () => {
+    if (currentProfile && currentProfile.id) {
+      deleteProfile(currentProfile.id);
+    }
+  });
+}
+
+async function approveEdit(profileId) {
+  try {
+    const response = await fetch(
+      `${API_URL}/profiles/${profileId}/approve-edit`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error("Server response:", errorData);
+      throw new Error(errorData || "Failed to approve edit");
+    }
+
+    const data = await response.json();
+    if (data.success) {
+      showToast("Edit request approved successfully", "success");
+      await loadFacultyProfile(); // Reload the profile to reflect changes
+      // Refresh the edit requests list after approval
+      if (typeof loadEditRequests === "function") {
+        await loadEditRequests();
+      }
+    } else {
+      showToast(data.message || "Failed to approve edit", "error");
+    }
+  } catch (err) {
+    console.error("Approve edit error:", err);
+    showToast("Failed to approve edit: " + err.message, "error");
+  }
+}
+
+async function requestEdit() {
+  if (!currentUser || !facultyId) {
+    showToast("You must be logged in to request edits", "error");
+    return;
+  }
+
+  try {
+    const response = await fetch(
+      `${API_URL}/profiles/${facultyId}/request-edit`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error("Server response:", errorData);
+      throw new Error(errorData || "Failed to request edit");
+    }
+
+    const data = await response.json();
+    if (data.success) {
+      showToast("Edit request sent successfully", "success");
+      await loadFacultyProfile(); // Reload the profile to reflect changes
+    } else {
+      showToast(data.message || "Failed to request edit", "error");
+    }
+  } catch (err) {
+    console.error("Request edit error:", err);
+    showToast("Failed to request edit: " + err.message, "error");
+  }
+}
+
+// Add event listener for the request edit button
+if (elements.editBtn) {
+  elements.editBtn.addEventListener("click", async () => {
+    if (currentUser && currentUser.role === "staff") {
+      await requestEdit();
+    } else {
+      elements.editModal.classList.remove("hidden");
+    }
+  });
+}
+
+// Event Listeners
+if (elements.deleteBtn) {
+  elements.deleteBtn.addEventListener("click", () => {
+    if (currentProfile && currentProfile.id) {
+      deleteProfile(currentProfile.id);
+    }
+  });
+}
+
+async function approveEdit(profileId) {
+  try {
+    const response = await fetch(
+      `${API_URL}/profiles/${profileId}/approve-edit`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error("Server response:", errorData);
+      throw new Error(errorData || "Failed to approve edit");
+    }
+
+    const data = await response.json();
+    if (data.success) {
+      showToast("Edit request approved successfully", "success");
+      await loadFacultyProfile(); // Reload the profile to reflect changes
+      // Refresh the edit requests list after approval
+      if (typeof loadEditRequests === "function") {
+        await loadEditRequests();
+      }
+    } else {
+      showToast(data.message || "Failed to approve edit", "error");
+    }
+  } catch (err) {
+    console.error("Approve edit error:", err);
+    showToast("Failed to approve edit: " + err.message, "error");
+  }
+}
+
+async function requestEdit() {
+  if (!currentUser || !facultyId) {
+    showToast("You must be logged in to request edits", "error");
+    return;
+  }
+
+  try {
+    const response = await fetch(
+      `${API_URL}/profiles/${facultyId}/request-edit`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error("Server response:", errorData);
+      throw new Error(errorData || "Failed to request edit");
+    }
+
+    const data = await response.json();
+    if (data.success) {
+      showToast("Edit request sent successfully", "success");
+      await loadFacultyProfile(); // Reload the profile to reflect changes
+    } else {
+      showToast(data.message || "Failed to request edit", "error");
+    }
+  } catch (err) {
+    console.error("Request edit error:", err);
+    showToast("Failed to request edit: " + err.message, "error");
+  }
+}
+
+// Add event listener for the request edit button
+if (elements.editBtn) {
+  elements.editBtn.addEventListener("click", async () => {
+    if (currentUser && currentUser.role === "staff") {
+      await requestEdit();
+    } else {
+      elements.editModal.classList.remove("hidden");
+    }
+  });
+}
+
+// Event Listeners
+if (elements.deleteBtn) {
+  elements.deleteBtn.addEventListener("click", () => {
+    if (currentProfile && currentProfile.id) {
+      deleteProfile(currentProfile.id);
+    }
+  });
+}
+
+async function approveEdit(profileId) {
+  try {
+    const response = await fetch(
+      `${API_URL}/profiles/${profileId}/approve-edit`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error("Server response:", errorData);
+      throw new Error(errorData || "Failed to approve edit");
+    }
+
+    const data = await response.json();
+    if (data.success) {
+      showToast("Edit request approved successfully", "success");
+      await loadFacultyProfile(); // Reload the profile to reflect changes
+      // Refresh the edit requests list after approval
+      if (typeof loadEditRequests === "function") {
+        await loadEditRequests();
+      }
+    } else {
+      showToast(data.message || "Failed to approve edit", "error");
+    }
+  } catch (err) {
+    console.error("Approve edit error:", err);
+    showToast("Failed to approve edit: " + err.message, "error");
+  }
+}
+
+async function requestEdit() {
+  if (!currentUser || !facultyId) {
+    showToast("You must be logged in to request edits", "error");
+    return;
+  }
+
+  try {
+    const response = await fetch(
+      `${API_URL}/profiles/${facultyId}/request-edit`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error("Server response:", errorData);
+      throw new Error(errorData || "Failed to request edit");
+    }
+
+    const data = await response.json();
+    if (data.success) {
+      showToast("Edit request sent successfully", "success");
+      await loadFacultyProfile(); // Reload the profile to reflect changes
+    } else {
+      showToast(data.message || "Failed to request edit", "error");
+    }
+  } catch (err) {
+    console.error("Request edit error:", err);
+    showToast("Failed to request edit: " + err.message, "error");
+  }
+}
+
+// Add event listener for the request edit button
+if (elements.editBtn) {
+  elements.editBtn.addEventListener("click", async () => {
+    if (currentUser && currentUser.role === "staff") {
+      await requestEdit();
+    } else {
+      elements.editModal.classList.remove("hidden");
+    }
+  });
+}
+
+// Event Listeners
+if (elements.deleteBtn) {
+  elements.deleteBtn.addEventListener("click", () => {
+    if (currentProfile && currentProfile.id) {
+      deleteProfile(currentProfile.id);
+    }
+  });
+}
+
+async function approveEdit(profileId) {
+  try {
+    const response = await fetch(
+      `${API_URL}/profiles/${profileId}/approve-edit`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error("Server response:", errorData);
+      throw new Error(errorData || "Failed to approve edit");
+    }
+
+    const data = await response.json();
+    if (data.success) {
+      showToast("Edit request approved successfully", "success");
+      await loadFacultyProfile(); // Reload the profile to reflect changes
+      // Refresh the edit requests list after approval
+      if (typeof loadEditRequests === "function") {
+        await loadEditRequests();
+      }
+    } else {
+      showToast(data.message || "Failed to approve edit", "error");
+    }
+  } catch (err) {
+    console.error("Approve edit error:", err);
+    showToast("Failed to approve edit: " + err.message, "error");
+  }
+}
+
+async function requestEdit() {
+  if (!currentUser || !facultyId) {
+    showToast("You must be logged in to request edits", "error");
+    return;
+  }
+
+  try {
+    const response = await fetch(
+      `${API_URL}/profiles/${facultyId}/request-edit`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error("Server response:", errorData);
+      throw new Error(errorData || "Failed to request edit");
+    }
+
+    const data = await response.json();
+    if (data.success) {
+      showToast("Edit request sent successfully", "success");
+      await loadFacultyProfile(); // Reload the profile to reflect changes
+    } else {
+      showToast(data.message || "Failed to request edit", "error");
+    }
+  } catch (err) {
+    console.error("Request edit error:", err);
+    showToast("Failed to request edit: " + err.message, "error");
+  }
+}
+
+// Add event listener for the request edit button
+if (elements.editBtn) {
+  elements.editBtn.addEventListener("click", async () => {
+    if (currentUser && currentUser.role === "staff") {
+      await requestEdit();
+    } else {
+      elements.editModal.classList.remove("hidden");
+    }
+  });
+}
+
+// Event Listeners
+if (elements.deleteBtn) {
+  elements.deleteBtn.addEventListener("click", () => {
+    if (currentProfile && currentProfile.id) {
+      deleteProfile(currentProfile.id);
+    }
+  });
+}
+
+async function approveEdit(profileId) {
+  try {
+    const response = await fetch(
+      `${API_URL}/profiles/${profileId}/approve-edit`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error("Server response:", errorData);
+      throw new Error(errorData || "Failed to approve edit");
+    }
+
+    const data = await response.json();
+    if (data.success) {
+      showToast("Edit request approved successfully", "success");
+      await loadFacultyProfile(); // Reload the profile to reflect changes
+      // Refresh the edit requests list after approval
+      if (typeof loadEditRequests === "function") {
+        await loadEditRequests();
+      }
+    } else {
+      showToast(data.message || "Failed to approve edit", "error");
+    }
+  } catch (err) {
+    console.error("Approve edit error:", err);
+    showToast("Failed to approve edit: " + err.message, "error");
+  }
+}
+
+async function requestEdit() {
+  if (!currentUser || !facultyId) {
+    showToast("You must be logged in to request edits", "error");
+    return;
+  }
+
+  try {
+    const response = await fetch(
+      `${API_URL}/profiles/${facultyId}/request-edit`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error("Server response:", errorData);
+      throw new Error(errorData || "Failed to request edit");
+    }
+
+    const data = await response.json();
+    if (data.success) {
+      showToast("Edit request sent successfully", "success");
+      await loadFacultyProfile(); // Reload the profile to reflect changes
+    } else {
+      showToast(data.message || "Failed to request edit", "error");
+    }
+  } catch (err) {
+    console.error("Request edit error:", err);
+    showToast("Failed to request edit: " + err.message, "error");
+  }
+}
+
+// Add event listener for the request edit button
+if (elements.editBtn) {
+  elements.editBtn.addEventListener("click", async () => {
+    if (currentUser && currentUser.role === "staff") {
+      await requestEdit();
+    } else {
+      elements.editModal.classList.remove("hidden");
+    }
+  });
+}
+
+// Event Listeners
+if (elements.deleteBtn) {
+  elements.deleteBtn.addEventListener("click", () => {
+    if (currentProfile && currentProfile.id) {
+      deleteProfile(currentProfile.id);
+    }
+  });
+}
+
+async function approveEdit(profileId) {
+  try {
+    const response = await fetch(
+      `${API_URL}/profiles/${profileId}/approve-edit`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error("Server response:", errorData);
+      throw new Error(errorData || "Failed to approve edit");
+    }
+
+    const data = await response.json();
+    if (data.success) {
+      showToast("Edit request approved successfully", "success");
+      await loadFacultyProfile(); // Reload the profile to reflect changes
+      // Refresh the edit requests list after approval
+      if (typeof loadEditRequests === "function") {
+        await loadEditRequests();
+      }
+    } else {
+      showToast(data.message || "Failed to approve edit", "error");
+    }
+  } catch (err) {
+    console.error("Approve edit error:", err);
+    showToast("Failed to approve edit: " + err.message, "error");
+  }
+}
+
+async function requestEdit() {
+  if (!currentUser || !facultyId) {
+    showToast("You must be logged in to request edits", "error");
+    return;
+  }
+
+  try {
+    const response = await fetch(
+      `${API_URL}/profiles/${facultyId}/request-edit`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error("Server response:", errorData);
+      throw new Error(errorData || "Failed to request edit");
+    }
+
+    const data = await response.json();
+    if (data.success) {
+      showToast("Edit request sent successfully", "success");
+      await loadFacultyProfile(); // Reload the profile to reflect changes
+    } else {
+      showToast(data.message || "Failed to request edit", "error");
+    }
+  } catch (err) {
+    console.error("Request edit error:", err);
+    showToast("Failed to request edit: " + err.message, "error");
+  }
+}
+
+// Add event listener for the request edit button
+if (elements.editBtn) {
+  elements.editBtn.addEventListener("click", async () => {
+    if (currentUser && currentUser.role === "staff") {
+      await requestEdit();
+    } else {
+      elements.editModal.classList.remove("hidden");
+    }
+  });
+}
+
+// Event Listeners
+if (elements.deleteBtn) {
+  elements.deleteBtn.addEventListener("click", () => {
+    if (currentProfile && currentProfile.id) {
+      deleteProfile(currentProfile.id);
+    }
+  });
+}
+
+async function approveEdit(profileId) {
+  try {
+    const response = await fetch(
+      `${API_URL}/profiles/${profileId}/approve-edit`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error("Server response:", errorData);
+      throw new Error(errorData || "Failed to approve edit");
+    }
+
+    const data = await response.json();
+    if (data.success) {
+      showToast("Edit request approved successfully", "success");
+      await loadFacultyProfile(); // Reload the profile to reflect changes
+      // Refresh the edit requests list after approval
+      if (typeof loadEditRequests === "function") {
+        await loadEditRequests();
+      }
+    } else {
+      showToast(data.message || "Failed to approve edit", "error");
+    }
+  } catch (err) {
+    console.error("Approve edit error:", err);
+    showToast("Failed to approve edit: " + err.message, "error");
+  }
+}
+
+async function requestEdit() {
+  if (!currentUser || !facultyId) {
+    showToast("You must be logged in to request edits", "error");
+    return;
+  }
+
+  try {
+    const response = await fetch(
+      `${API_URL}/profiles/${facultyId}/request-edit`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error("Server response:", errorData);
+      throw new Error(errorData || "Failed to request edit");
+    }
+
+    const data = await response.json();
+    if (data.success) {
+      showToast("Edit request sent successfully", "success");
+      await loadFacultyProfile(); // Reload the profile to reflect changes
+    } else {
+      showToast(data.message || "Failed to request edit", "error");
+    }
+  } catch (err) {
+    console.error("Request edit error:", err);
+    showToast("Failed to request edit: " + err.message, "error");
+  }
+}
+
+// Add event listener for the request edit button
+if (elements.editBtn) {
+  elements.editBtn.addEventListener("click", async () => {
+    if (currentUser && currentUser.role === "staff") {
+      await requestEdit();
+    } else {
+      elements.editModal.classList.remove("hidden");
+    }
+  });
+}
+
+// Event Listeners
+if (elements.deleteBtn) {
+  elements.deleteBtn.addEventListener("click", () => {
+    if (currentProfile && currentProfile.id) {
+      deleteProfile(currentProfile.id);
+    }
+  });
+}
+
+async function approveEdit(profileId) {
+  try {
+    const response = await fetch(
+      `${API_URL}/profiles/${profileId}/approve-edit`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error("Server response:", errorData);
+      throw new Error(errorData || "Failed to approve edit");
+    }
+
+    const data = await response.json();
+    if (data.success) {
+      showToast("Edit request approved successfully", "success");
+      await loadFacultyProfile(); // Reload the profile to reflect changes
+      // Refresh the edit requests list after approval
+      if (typeof loadEditRequests === "function") {
+        await loadEditRequests();
+      }
+    } else {
+      showToast(data.message || "Failed to approve edit", "error");
+    }
+  } catch (err) {
+    console.error("Approve edit error:", err);
+    showToast("Failed to approve edit: " + err.message, "error");
+  }
+}
+
+async function requestEdit() {
+  if (!currentUser || !facultyId) {
+    showToast("You must be logged in to request edits", "error");
+    return;
+  }
+
+  try {
+    const response = await fetch(
+      `${API_URL}/profiles/${facultyId}/request-edit`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error("Server response:", errorData);
+      throw new Error(errorData || "Failed to request edit");
+    }
+
+    const data = await response.json();
+    if (data.success) {
+      showToast("Edit request sent successfully", "success");
+      await loadFacultyProfile(); // Reload the profile to reflect changes
+    } else {
+      showToast(data.message || "Failed to request edit", "error");
+    }
+  } catch (err) {
+    console.error("Request edit error:", err);
+    showToast("Failed to request edit: " + err.message, "error");
+  }
+}
+
+// Add event listener for the request edit button
+if (elements.editBtn) {
+  elements.editBtn.addEventListener("click", async () => {
+    if (currentUser && currentUser.role === "staff") {
+      await requestEdit();
+    } else {
+      elements.editModal.classList.remove("hidden");
+    }
+  });
+}
+
+// Event Listeners
+if (elements.deleteBtn) {
+  elements.deleteBtn.addEventListener("click", () => {
+    if (currentProfile && currentProfile.id) {
+      deleteProfile(currentProfile.id);
+    }
+  });
+}
+
+async function approveEdit(profileId) {
+  try {
+    const response = await fetch(
+      `${API_URL}/profiles/${profileId}/approve-edit`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error("Server response:", errorData);
+      throw new Error(errorData || "Failed to approve edit");
+    }
+
+    const data = await response.json();
+    if (data.success) {
+      showToast("Edit request approved successfully", "success");
+      await loadFacultyProfile(); // Reload the profile to reflect changes
+      // Refresh the edit requests list after approval
+      if (typeof loadEditRequests === "function") {
+        await loadEditRequests();
+      }
+    } else {
+      showToast(data.message || "Failed to approve edit", "error");
+    }
+  } catch (err) {
+    console.error("Approve edit error:", err);
+    showToast("Failed to approve edit: " + err.message, "error");
+  }
+}
+
+async function requestEdit() {
+  if (!currentUser || !facultyId) {
+    showToast("You must be logged in to request edits", "error");
+    return;
+  }
+
+  try {
+    const response = await fetch(
+      `${API_URL}/profiles/${facultyId}/request-edit`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error("Server response:", errorData);
+      throw new Error(errorData || "Failed to request edit");
+    }
+
+    const data = await response.json();
+    if (data.success) {
+      showToast("Edit request sent successfully", "success");
+      await loadFacultyProfile(); // Reload the profile to reflect changes
+    } else {
+      showToast(data.message || "Failed to request edit", "error");
+    }
+  } catch (err) {
+    console.error("Request edit error:", err);
+    showToast("Failed to request edit: " + err.message, "error");
+  }
+}
+
+// Add event listener for the request edit button
+if (elements.editBtn) {
+  elements.editBtn.addEventListener("click", async () => {
+    if (currentUser && currentUser.role === "staff") {
+      await requestEdit();
+    } else {
+      elements.editModal.classList.remove("hidden");
+    }
+  });
+}
+
+// Event Listeners
+if (elements.deleteBtn) {
+  elements.deleteBtn.addEventListener("click", () => {
+    if (currentProfile && currentProfile.id) {
+      deleteProfile(currentProfile.id);
+    }
+  });
+}
+
+async function approveEdit(profileId) {
+  try {
+    const response = await fetch(
+      `${API_URL}/profiles/${profileId}/approve-edit`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error("Server response:", errorData);
+      throw new Error(errorData || "Failed to approve edit");
+    }
+
+    const data = await response.json();
+    if (data.success) {
+      showToast("Edit request approved successfully", "success");
+      await loadFacultyProfile(); // Reload the profile to reflect changes
+      // Refresh the edit requests list after approval
+      if (typeof loadEditRequests === "function") {
+        await loadEditRequests();
+      }
+    } else {
+      showToast(data.message || "Failed to approve edit", "error");
+    }
+  } catch (err) {
+    console.error("Approve edit error:", err);
+    showToast("Failed to approve edit: " + err.message, "error");
+  }
+}
+
+async function requestEdit() {
+  if (!currentUser || !facultyId) {
+    showToast("You must be logged in to request edits", "error");
+    return;
+  }
+
+  try {
+    const response = await fetch(
+      `${API_URL}/profiles/${facultyId}/request-edit`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error("Server response:", errorData);
+      throw new Error(errorData || "Failed to request edit");
+    }
+
+    const data = await response.json();
+    if (data.success) {
+      showToast("Edit request sent successfully", "success");
+      await loadFacultyProfile(); // Reload the profile to reflect changes
+    } else {
+      showToast(data.message || "Failed to request edit", "error");
+    }
+  } catch (err) {
+    console.error("Request edit error:", err);
+    showToast("Failed to request edit: " + err.message, "error");
+  }
+}
+
+// Add event listener for the request edit button
+if (elements.editBtn) {
+  elements.editBtn.addEventListener("click", async () => {
+    if (currentUser && currentUser.role === "staff") {
+      await requestEdit();
+    } else {
+      elements.editModal.classList.remove("hidden");
+    }
+  });
+}
+
+// Event Listeners
+if (elements.deleteBtn) {
+  elements.deleteBtn.addEventListener("click", () => {
+    if (currentProfile && currentProfile.id) {
+      deleteProfile(currentProfile.id);
+    }
+  });
+}
+
+async function approveEdit(profileId) {
+  try {
+    const response = await fetch(
+      `${API_URL}/profiles/${profileId}/approve-edit`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error("Server response:", errorData);
+      throw new Error(errorData || "Failed to approve edit");
+    }
+
+    const data = await response.json();
+    if (data.success) {
+      showToast("Edit request approved successfully", "success");
+      await loadFacultyProfile(); // Reload the profile to reflect changes
+      // Refresh the edit requests list after approval
+      if (typeof loadEditRequests === "function") {
+        await loadEditRequests();
+      }
+    } else {
+      showToast(data.message || "Failed to approve edit", "error");
+    }
+  } catch (err) {
+    console.error("Approve edit error:", err);
+    showToast("Failed to approve edit: " + err.message, "error");
+  }
+}
+
+async function requestEdit() {
+  if (!currentUser || !facultyId) {
+    showToast("You must be logged in to request edits", "error");
+    return;
+  }
+
+  try {
+    const response = await fetch(
+      `${API_URL}/profiles/${facultyId}/request-edit`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error("Server response:", errorData);
+      throw new Error(errorData || "Failed to request edit");
+    }
+
+    const data = await response.json();
+    if (data.success) {
+      showToast("Edit request sent successfully", "success");
+      await loadFacultyProfile(); // Reload the profile to reflect changes
+    } else {
+      showToast(data.message || "Failed to request edit", "error");
+    }
+  } catch (err) {
+    console.error("Request edit error:", err);
+    showToast("Failed to request edit: " + err.message, "error");
+  }
+}
+
+// Add event listener for the request edit button
+if (elements.editBtn) {
+  elements.editBtn.addEventListener("click", async () => {
+    if (currentUser && currentUser.role === "staff") {
+      await requestEdit();
+    } else {
+      elements.editModal.classList.remove("hidden");
+    }
+  });
+}
+
+// Event Listeners
+if (elements.deleteBtn) {
+  elements.deleteBtn.addEventListener("click", () => {
+    if (currentProfile && currentProfile.id) {
+      deleteProfile(currentProfile.id);
+    }
+  });
+}
+
+async function approveEdit(profileId) {
+  try {
+    const response = await fetch(
+      `${API_URL}/profiles/${profileId}/approve-edit`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error("Server response:", errorData);
+      throw new Error(errorData || "Failed to approve edit");
+    }
+
+    const data = await response.json();
+    if (data.success) {
+      showToast("Edit request approved successfully", "success");
+      await loadFacultyProfile(); // Reload the profile to reflect changes
+      // Refresh the edit requests list after approval
+      if (typeof loadEditRequests === "function") {
+        await loadEditRequests();
+      }
+    } else {
+      showToast(data.message || "Failed to approve edit", "error");
+    }
+  } catch (err) {
+    console.error("Approve edit error:", err);
+    showToast("Failed to approve edit: " + err.message, "error");
+  }
+}
+
+async function requestEdit() {
+  if (!currentUser || !facultyId) {
+    showToast("You must be logged in to request edits", "error");
+    return;
+  }
+
+  try {
+    const response = await fetch(
+      `${API_URL}/profiles/${facultyId}/request-edit`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error("Server response:", errorData);
+      throw new Error(errorData || "Failed to request edit");
+    }
+
+    const data = await response.json();
+    if (data.success) {
+      showToast("Edit request sent successfully", "success");
+      await loadFacultyProfile(); // Reload the profile to reflect changes
+    } else {
+      showToast(data.message || "Failed to request edit", "error");
+    }
+  } catch (err) {
+    console.error("Request edit error:", err);
+    showToast("Failed to request edit: " + err.message, "error");
+  }
+}
+
+// Add event listener for the request edit button
+if (elements.editBtn) {
+  elements.editBtn.addEventListener("click", async () => {
+    if (currentUser && currentUser.role === "staff") {
+      await requestEdit();
+    } else {
+      elements.editModal.classList.remove("hidden");
+    }
+  });
+}
+
+// Event Listeners
+if (elements.deleteBtn) {
+  elements.deleteBtn.addEventListener("click", () => {
+    if (currentProfile && currentProfile.id) {
+      deleteProfile(currentProfile.id);
+    }
+  });
+}
+
+async function approveEdit(profileId) {
+  try {
+    const response = await fetch(
+      `${API_URL}/profiles/${profileId}/approve-edit`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error("Server response:", errorData);
+      throw new Error(errorData || "Failed to approve edit");
+    }
+
+    const data = await response.json();
+    if (data.success) {
+      showToast("Edit request approved successfully", "success");
+      await loadFacultyProfile(); // Reload the profile to reflect changes
+      // Refresh the edit requests list after approval
+      if (typeof loadEditRequests === "function") {
+        await loadEditRequests();
+      }
+    } else {
+      showToast(data.message || "Failed to approve edit", "error");
+    }
+  } catch (err) {
+    console.error("Approve edit error:", err);
+    showToast("Failed to approve edit: " + err.message, "error");
+  }
+}
+
+async function requestEdit() {
+  if (!currentUser || !facultyId) {
+    showToast("You must be logged in to request edits", "error");
+    return;
+  }
+
+  try {
+    const response = await fetch(
+      `${API_URL}/profiles/${facultyId}/request-edit`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error("Server response:", errorData);
+      throw new Error(errorData || "Failed to request edit");
+    }
+
+    const data = await response.json();
+    if (data.success) {
+      showToast("Edit request sent successfully", "success");
+      await loadFacultyProfile(); // Reload the profile to reflect changes
+    } else {
+      showToast(data.message || "Failed to request edit", "error");
+    }
+  } catch (err) {
+    console.error("Request edit error:", err);
+    showToast("Failed to request edit: " + err.message, "error");
+  }
+}

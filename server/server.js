@@ -457,48 +457,54 @@ app.get("/profiles/:id", async (req, res) => {
   }
 });
 
-// Delete Faculty Profile (Manager Only)
-app.delete("/profiles/:id", authenticateToken, async (req, res) => {
-  if (req.user.role !== "manager") {
-    return res
-      .status(403)
-      .json({ success: false, message: "Manager access required" });
-  }
-
-  const { id } = req.params;
+// Delete Faculty Profile (Owner or Manager)
+app.delete('/profiles/:id', authenticateToken, async (req, res) => {
   try {
-    // Get profile before deletion to access file paths
-    const profile = await getQuery("SELECT * FROM profiles WHERE id = ?", [id]);
-    if (!profile) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Profile not found" });
-    }
+    const profileId = req.params.id;
+    const userId = req.user.id;
+    const userRole = req.user.role;
 
-    // Get user_id for cascading delete
-    const user_id = profile.user_id;
+    // Fetch the profile to check ownership and get file paths
+    db.get('SELECT * FROM profiles WHERE id = ?', [profileId], async (err, profile) => {
+      if (err) {
+        console.error('Error fetching profile:', err);
+        return res.status(500).json({ success: false, message: 'Server error: ' + err.message });
+      }
+      if (!profile) {
+        return res.status(404).json({ success: false, message: 'Profile not found' });
+      }
+      if (String(userId) !== String(profile.user_id) && userRole !== 'manager') {
+        return res.status(403).json({ success: false, message: 'Unauthorized to delete this profile' });
+      }
 
-    // Delete all associated files with transaction-like behavior
-    try {
-      await deleteProfileFiles(profile);
-      // Delete user (will cascade to profile due to foreign key)
-      await runQuery("DELETE FROM users WHERE id = ?", [user_id]);
-    } catch (err) {
-      console.error("Error during profile deletion:", err);
-      // Attempt to recover any partially deleted files
-      throw new Error("Profile deletion failed: " + err.message);
-    }
+      // Delete associated files (if any)
+      const fileFields = [
+        'profile_pic', 'tenth_cert', 'twelfth_cert', 'appointment_order', 'joining_report',
+        'ug_degree', 'pg_ms_consolidated', 'phd_degree', 'journals_list', 'conferences_list',
+        'au_supervisor_letter', 'fdp_workshops_webinars', 'nptel_coursera', 'invited_talks',
+        'projects_sanction', 'consultancy', 'patent', 'community_cert', 'aadhar', 'pan'
+      ];
+      fileFields.forEach(field => {
+        if (profile[field]) {
+          const filePath = path.join(__dirname, 'uploads', path.basename(profile[field]));
+          if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+          }
+        }
+      });
 
-    console.log(`Deleted faculty profile ${id} and associated files`);
-    res.json({
-      success: true,
-      message: "Faculty profile deleted successfully",
+      // Delete the profile from the database
+      db.run('DELETE FROM profiles WHERE id = ?', [profileId], function (err) {
+        if (err) {
+          console.error('Error deleting profile:', err);
+          return res.status(500).json({ success: false, message: 'Server error: ' + err.message });
+        }
+        res.json({ success: true, message: 'Profile and files deleted.' });
+      });
     });
-  } catch (err) {
-    console.error("Delete profile error:", err);
-    res
-      .status(500)
-      .json({ success: false, message: "Server error: " + err.message });
+  } catch (error) {
+    console.error('Error deleting profile:', error);
+    res.status(500).json({ success: false, message: 'Server error: ' + error.message });
   }
 });
 
@@ -1106,6 +1112,22 @@ app.post("/profiles/lock-all", authenticateToken, async (req, res) => {
   }
 });
 
+// Lock/Unlock a profile
+app.post("/profiles/:id/lock", (req, res) => {
+  const profileId = req.params.id;
+  const { lock } = req.body; // expects { lock: true } or { lock: false }
+  db.run(
+    "UPDATE profiles SET is_locked = ? WHERE id = ?",
+    [lock ? 1 : 0, profileId],
+    function (err) {
+      if (err) {
+        return res.status(500).json({ success: false, message: "Failed to update lock status" });
+      }
+      res.json({ success: true, locked: !!lock });
+    }
+  );
+});
+
 // Get User by ID
 app.get("/users/:id", authenticateToken, async (req, res) => {
   const { id } = req.params;
@@ -1119,6 +1141,119 @@ app.get("/users/:id", authenticateToken, async (req, res) => {
     console.error("Get user error:", err);
     res.status(500).json({ success: false, message: "Server error: " + err.message });
   }
+});
+
+// Add this route to handle edit requests
+app.post('/profiles/:id/request-edit', authenticateToken, async (req, res) => {
+  const profileId = req.params.id;
+  const requestingUserId = req.user.id;
+
+  try {
+    // Check if the user is a staff member
+    if (req.user.role !== 'staff') {
+      return res.status(403).json({ success: false, message: 'Only staff members can request edits' });
+    }
+
+    // Update the profile's edit_requested status
+    const updateQuery = `
+      UPDATE profiles 
+      SET edit_requested = TRUE 
+      WHERE id = ? AND user_id = ?
+    `;
+    
+    await new Promise((resolve, reject) => {
+      db.run(updateQuery, [profileId, requestingUserId], function(err) {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
+
+    // Get manager emails to notify them
+    const managerQuery = `
+      SELECT email FROM users WHERE role = 'manager'
+    `;
+    
+    const managers = await new Promise((resolve, reject) => {
+      db.all(managerQuery, [], (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows);
+      });
+    });
+
+    // Get the faculty profile details
+    const profileQuery = `
+      SELECT p.*, u.email as faculty_email 
+      FROM profiles p 
+      JOIN users u ON p.user_id = u.id 
+      WHERE p.id = ?
+    `;
+    
+    const profile = await new Promise((resolve, reject) => {
+      db.get(profileQuery, [profileId], (err, row) => {
+        if (err) reject(err);
+        else resolve(row);
+      });
+    });
+
+    // Send email notifications to managers
+    for (const manager of managers) {
+      const emailContent = {
+        from: EMAIL_USER,
+        to: manager.email,
+        subject: 'New Faculty Profile Edit Request',
+        text: `
+          A new edit request has been submitted:
+          
+          Faculty Name: ${profile.name}
+          Faculty Email: ${profile.faculty_email}
+          Department: ${profile.department}
+          
+          Please review the request in the faculty management system.
+        `
+      };
+      
+      await transporter.sendMail(emailContent);
+    }
+
+    res.json({ success: true, message: 'Edit request submitted successfully' });
+  } catch (err) {
+    console.error('Error processing edit request:', err);
+    res.status(500).json({ success: false, message: 'Failed to process edit request' });
+  }
+});
+
+// Approve edit request and unlock profile
+app.post("/profiles/:id/approve-edit", (req, res) => {
+  const profileId = req.params.id;
+  // Only allow managers to approve
+  const authHeader = req.headers.authorization;
+  if (!authHeader) {
+    return res.status(401).json({ success: false, message: "Unauthorized" });
+  }
+  const token = authHeader.split(" ")[1];
+  let user;
+  try {
+    user = jwt.verify(token, JWT_SECRET);
+  } catch (err) {
+    return res.status(401).json({ success: false, message: "Invalid token" });
+  }
+  if (user.role !== "manager") {
+    return res.status(403).json({ success: false, message: "Forbidden" });
+  }
+
+  db.run(
+    "UPDATE profiles SET edit_requested = 0, is_locked = 0 WHERE id = ?",
+    [profileId],
+    function (err) {
+      if (err) {
+        return res.status(500).json({ success: false, message: "Database error" });
+      }
+      if (this.changes === 0) {
+        return res.status(404).json({ success: false, message: "Profile not found" });
+      }
+      res.json({ success: true, message: "Profile unlocked and edit approved" });
+    }
+  );
 });
 
 app.listen(PORT, () => {

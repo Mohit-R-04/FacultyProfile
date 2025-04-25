@@ -276,6 +276,9 @@
           Edit Profile
         </button>
         <button id="export-pdf" class="btn btn-secondary">Export PDF</button>
+        <button id="delete-btn" class="btn btn-danger hidden">
+          <i class="fas fa-trash"></i> Delete Profile
+        </button>
       </div>
     </main>
 
@@ -332,7 +335,17 @@
           <!-- Profile Picture Preview -->
           <div class="form-group">
             <label>Current Profile Picture</label>
-            <img id="profile-pic-preview" src="" alt="Profile Picture Preview" style="max-width: 200px; display: none; margin: 10px 0; border-radius: 5px;" />
+            <img
+              id="profile-pic-preview"
+              src=""
+              alt="Profile Picture Preview"
+              style="
+                max-width: 200px;
+                display: none;
+                margin: 10px 0;
+                border-radius: 5px;
+              "
+            />
           </div>
           <div class="form-group">
             <label for="edit-profile-pic">Profile Picture</label>
