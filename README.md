@@ -93,24 +93,6 @@ FacultyProfile-main/
 
 ---
 
-## 💡 Use Cases
-
-- Academic department websites.
-- Profile directories for research labs or administrative units.
-- Quick-start template for university information systems.
-
----
-
-## 🔮 Future Scope
-
-- Role-based login for faculty/admins.
-- Advanced search and filter by department or publication.
-- Integration with external CV formats (e.g., ORCID, Google Scholar).
-- Export to PDF or printable view.
-- Admin dashboard for bulk editing or CSV import.
-
----
-
 ## 🛠️ Installation Guide
 
 Follow these steps to set up and run the Faculty Profile Management System locally on your machine.
@@ -198,3 +180,21 @@ Uploaded faculty images are stored in the `server/uploads/` directory. Ensure th
 
 - Use your browser's developer tools for any frontend issues.
 - Check `server/server.log` for backend logs and errors.
+
+---
+
+## 💡 Use Cases
+
+- Academic department websites.
+- Profile directories for research labs or administrative units.
+- Quick-start template for university information systems.
+
+---
+
+## 🔮 Future Scope
+
+- Role-based login for faculty/admins.
+- Advanced search and filter by department or publication.
+- Integration with external CV formats (e.g., ORCID, Google Scholar).
+- Export to PDF or printable view.
+- Admin dashboard for bulk editing or CSV import.
