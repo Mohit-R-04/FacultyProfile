@@ -1,0 +1,52 @@
+{
+  "name": "faculty-profile-frontend",
+  "version": "1.0.0",
+  "description": "React frontend for Faculty Profile Management System",
+  "private": true,
+  "dependencies": {
+    "@testing-library/jest-dom": "^5.16.4",
+    "@testing-library/react": "^13.3.0",
+    "@testing-library/user-event": "^13.5.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.8.1",
+    "react-scripts": "5.0.1",
+    "axios": "^1.3.4",
+    "react-hook-form": "^7.43.5",
+    "react-query": "^3.39.3",
+    "react-toastify": "^9.1.1",
+    "styled-components": "^5.3.9",
+    "framer-motion": "^10.0.1",
+    "react-icons": "^4.7.1",
+    "react-pdf": "^6.2.2",
+    "jspdf": "^2.5.1",
+    "html2canvas": "^1.4.1",
+    "web-vitals": "^2.1.4"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject",
+    "vercel-build": "REACT_APP_API_URL=https://your-backend-domain.vercel.app/api react-scripts build"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "proxy": "http://localhost:8080"
+}

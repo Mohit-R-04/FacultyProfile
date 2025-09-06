@@ -1,0 +1,25 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "target/faculty-profile-management-1.0.0.jar",
+      "use": "@vercel/java"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/target/faculty-profile-management-1.0.0.jar"
+    }
+  ],
+  "env": {
+    "SPRING_PROFILES_ACTIVE": "vercel",
+    "DATABASE_URL": "@database_url",
+    "DB_USERNAME": "@db_username",
+    "DB_PASSWORD": "@db_password",
+    "JWT_SECRET": "@jwt_secret",
+    "EMAIL_USERNAME": "@email_username",
+    "EMAIL_PASSWORD": "@email_password",
+    "CORS_ORIGINS": "@cors_origins"
+  }
+}
