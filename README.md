@@ -8,7 +8,7 @@ A comprehensive full-stack web application built with **Spring Boot 3.2.0** back
 
 This project provides a complete solution for academic institutions to manage faculty information efficiently:
 
-- **Modern React Frontend** with responsive design, dark/light themes, and intuitive navigation
+- **Modern React Frontend** with responsive design and intuitive navigation
 - **Spring Boot Backend** with JWT authentication, role-based access control, and comprehensive API
 - **PostgreSQL Database** for reliable data persistence with JPA/Hibernate
 - **Advanced File Upload System** for document management with validation
@@ -49,6 +49,7 @@ This project provides a complete solution for academic institutions to manage fa
 - Responsive design for all devices
 - Intuitive navigation and user experience
 - Real-time notifications and feedback
+- Clean and professional interface
 
 ---
 
@@ -69,16 +70,15 @@ This project provides a complete solution for academic institutions to manage fa
 - **React Router** - Client-side routing
 - **React Query** - Data fetching and caching
 - **Axios** - HTTP client
-- **Styled Components** - CSS-in-JS styling
-- **Framer Motion** - Animations
-- **React Icons** - Icon library
+- **React Hook Form** - Form handling
 - **React Toastify** - Notifications
+- **React Icons** - Icon library
+- **React PDF** - PDF generation and viewing
 
 ### DevOps
-- **Docker** - Containerization
-- **Docker Compose** - Multi-container orchestration
-- **Maven** - Build tool
-- **NPM** - Package management
+- **Maven** - Build tool for backend
+- **NPM** - Package management for frontend
+- **Vercel** - Deployment platform
 
 ---
 
@@ -201,15 +201,13 @@ GRANT ALL PRIVILEGES ON DATABASE faculty_profile_db TO faculty_user;
 \q
 ```
 
-**Option B: Docker PostgreSQL (Quick Setup)**
+**Option B: Cloud PostgreSQL (Quick Setup)**
 ```bash
-# Run PostgreSQL in Docker
-docker run --name faculty-postgres \
-  -e POSTGRES_DB=faculty_profile_db \
-  -e POSTGRES_USER=faculty_user \
-  -e POSTGRES_PASSWORD=faculty_pass \
-  -p 5432:5432 \
-  -d postgres:15
+# Use a cloud PostgreSQL service like:
+# - Supabase (free tier)
+# - Railway
+# - Neon
+# - AWS RDS
 ```
 
 ### 3. Backend Setup & Run
@@ -415,9 +413,9 @@ The API documentation is available via Swagger UI:
 
 ### User Experience
 - **Responsive Design:** Works on desktop, tablet, and mobile devices
-- **Theme Support:** Dark and light theme options
 - **Real-time Updates:** Live data updates without page refresh
 - **Intuitive Navigation:** Easy-to-use interface with clear navigation
+- **Professional Interface:** Clean and modern design
 
 ---
 
@@ -516,49 +514,27 @@ This project is optimized for Vercel deployment with separate backend and fronte
    sudo cp -r build/* /var/www/html/
    ```
 
-### Option 3: Docker Deployment
+### Option 3: Manual Server Deployment
 
-1. **Create docker-compose.yml**
-   ```yaml
-   version: '3.8'
-   services:
-     postgres:
-       image: postgres:15
-       environment:
-         POSTGRES_DB: faculty_profile_db
-         POSTGRES_USER: faculty_user
-         POSTGRES_PASSWORD: faculty_pass
-       ports:
-         - "5432:5432"
-       volumes:
-         - postgres_data:/var/lib/postgresql/data
-   
-     backend:
-       build: ./backend
-       ports:
-         - "8080:8080"
-       environment:
-         - SPRING_PROFILES_ACTIVE=docker
-         - DB_USERNAME=faculty_user
-         - DB_PASSWORD=faculty_pass
-         - DATABASE_URL=jdbc:postgresql://postgres:5432/faculty_profile_db
-       depends_on:
-         - postgres
-   
-     frontend:
-       build: ./frontend
-       ports:
-         - "3000:80"
-       environment:
-         - REACT_APP_API_URL=http://localhost:8080/api
-   
-   volumes:
-     postgres_data:
+1. **Set up production server**
+   ```bash
+   # Install Java 17, Node.js 18, and PostgreSQL
+   # Configure firewall and security
+   # Set up reverse proxy (nginx/apache)
    ```
 
-2. **Deploy with Docker Compose**
+2. **Deploy backend**
    ```bash
-   docker-compose up -d
+   cd backend
+   mvn clean package -Pprod
+   java -jar target/faculty-profile-management-1.0.0.jar
+   ```
+
+3. **Deploy frontend**
+   ```bash
+   cd frontend
+   npm run build
+   # Serve build folder with nginx or apache
    ```
 
 ### Database Setup for Production
@@ -809,14 +785,7 @@ cd FacultyProfile
 chmod +x test-app.sh
 
 # 2. Setup database (choose one)
-# Option A: Docker PostgreSQL
-docker run --name faculty-postgres \
-  -e POSTGRES_DB=faculty_profile_db \
-  -e POSTGRES_USER=faculty_user \
-  -e POSTGRES_PASSWORD=faculty_pass \
-  -p 5432:5432 -d postgres:15
-
-# Option B: Local PostgreSQL
+# Option A: Local PostgreSQL
 sudo -u postgres psql
 CREATE DATABASE faculty_profile_db;
 CREATE USER faculty_user WITH PASSWORD 'faculty_pass';
