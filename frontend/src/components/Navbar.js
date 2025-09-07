@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { FaUser, FaSignOutAlt, FaBars, FaTimes } from 'react-icons/fa';
+import ssnLogo from '../assets/images/ssn-logo.png';
 import './Navbar.css';
 
 const Navbar = () => {
@@ -22,8 +23,8 @@ const Navbar = () => {
   return (
     <nav className="navbar">
       <div className="navbar-container">
-        <Link to="/" className="navbar-brand">
-          <img src="/logo192.png" alt="SSN Logo" className="navbar-logo" />
+        <Link to={isAuthenticated() ? "/profiles" : "/"} className="navbar-brand">
+          <img src={ssnLogo} alt="SSN Logo" className="navbar-logo" />
           <span className="navbar-title">SSN Faculty Profiles</span>
         </Link>
 
@@ -37,9 +38,11 @@ const Navbar = () => {
           </button>
 
           <div className={`navbar-menu ${isMenuOpen ? 'active' : ''}`}>
-            <Link to="/" className="navbar-link" onClick={() => setIsMenuOpen(false)}>
-              Home
-            </Link>
+            {!isAuthenticated() && (
+              <Link to="/" className="navbar-link" onClick={() => setIsMenuOpen(false)}>
+                Home
+              </Link>
+            )}
             <Link to="/profiles" className="navbar-link" onClick={() => setIsMenuOpen(false)}>
               Faculty
             </Link>

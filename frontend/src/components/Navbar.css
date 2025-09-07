@@ -4,10 +4,12 @@
   left: 0;
   right: 0;
   z-index: 1000;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-  transition: var(--transition);
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .navbar-container {
@@ -25,14 +27,16 @@
   align-items: center;
   gap: 12px;
   text-decoration: none;
-  color: var(--gray-900);
+  color: white;
   font-weight: 700;
   font-size: 18px;
-  transition: var(--transition);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .navbar-brand:hover {
-  transform: translateY(-1px);
+  transform: translateY(-2px);
+  text-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
 }
 
 .navbar-logo {
@@ -53,18 +57,24 @@
 
 .mobile-menu-toggle {
   display: none;
-  background: none;
-  border: none;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   font-size: 20px;
-  color: var(--gray-600);
+  color: white;
   cursor: pointer;
-  padding: 8px;
-  border-radius: 4px;
-  transition: var(--transition);
+  padding: 10px;
+  border-radius: 8px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 .mobile-menu-toggle:hover {
-  background: var(--gray-100);
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .navbar-menu {
@@ -74,17 +84,24 @@
 }
 
 .navbar-link {
-  color: var(--gray-600);
+  color: rgba(255, 255, 255, 0.9);
   text-decoration: none;
   font-weight: 500;
-  padding: 8px 16px;
-  border-radius: 6px;
-  transition: var(--transition);
+  padding: 10px 18px;
+  border-radius: 12px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 .navbar-link:hover {
-  color: var(--primary-color);
-  background: var(--gray-100);
+  color: white;
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .navbar-user {
@@ -98,14 +115,21 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 12px;
-  border-radius: 6px;
+  padding: 10px 16px;
+  border-radius: 12px;
   cursor: pointer;
-  transition: var(--transition);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .user-info:hover {
-  background: var(--gray-100);
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .user-icon {
@@ -122,26 +146,29 @@
 
 .user-name {
   font-weight: 500;
-  color: var(--gray-700);
+  color: white;
   max-width: 150px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 .user-menu {
   position: absolute;
   top: 100%;
   right: 0;
-  background: white;
-  border: 1px solid var(--gray-200);
-  border-radius: 8px;
-  box-shadow: var(--shadow);
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
   min-width: 160px;
   opacity: 0;
   visibility: hidden;
   transform: translateY(-10px);
-  transition: var(--transition);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 1001;
 }
 
@@ -153,16 +180,18 @@
   padding: 12px 16px;
   border: none;
   background: none;
-  color: var(--gray-700);
+  color: white;
   text-align: left;
   cursor: pointer;
-  transition: var(--transition);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   font-size: 14px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 .user-menu-item:hover {
-  background: var(--gray-100);
-  color: var(--primary-color);
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  transform: translateX(4px);
 }
 
 .user-menu-item:first-child {
@@ -184,24 +213,30 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 10px 20px;
+  padding: 12px 24px;
   border: none;
-  border-radius: 6px;
+  border-radius: 12px;
   font-weight: 500;
   text-decoration: none;
   cursor: pointer;
-  transition: var(--transition);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   font-size: 14px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
 .btn-primary {
-  background: var(--primary-color);
+  background: rgba(255, 255, 255, 0.2);
   color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 .btn-primary:hover {
-  background: var(--primary-hover);
-  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
 }
 
 /* Mobile Styles */
@@ -219,8 +254,10 @@
     top: 100%;
     left: 0;
     right: 0;
-    background: white;
-    border: 1px solid var(--gray-200);
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
     border-top: none;
     flex-direction: column;
     padding: 20px;
@@ -228,7 +265,8 @@
     opacity: 0;
     visibility: hidden;
     transform: translateY(-10px);
-    transition: var(--transition);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
   }
 
   .navbar-menu.active {
