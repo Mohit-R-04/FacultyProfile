@@ -27,8 +27,8 @@
 .login-header {
   text-align: center;
   padding: 40px 30px 20px;
-  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-  color: white;
+  background: white;
+  color: black;
 }
 
 .login-header h1 {

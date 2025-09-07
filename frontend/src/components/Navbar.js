@@ -25,7 +25,7 @@ const Navbar = () => {
       <div className="navbar-container">
         <Link to={isAuthenticated() ? "/profiles" : "/"} className="navbar-brand">
           <img src={ssnLogo} alt="SSN Logo" className="navbar-logo" />
-          <span className="navbar-title">SSN Faculty Profiles</span>
+          <span className="navbar-title">Faculty Profiles</span>
         </Link>
 
         <div className="navbar-controls">

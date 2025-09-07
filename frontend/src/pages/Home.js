@@ -10,7 +10,7 @@ const Home = () => {
         <div className="container">
           <div className="hero-content">
             <h1 className="hero-title">
-              Welcome to SSN Faculty Profile Management
+              Welcome to Faculty Profile Management
             </h1>
             <p className="hero-subtitle">
               Streamline faculty information management with our comprehensive platform

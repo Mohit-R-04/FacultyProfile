@@ -95,7 +95,7 @@ code {
 
 .btn-primary {
   background: var(--accent-primary);
-  color: white;
+  color: black;
 }
 
 .btn-primary:hover {

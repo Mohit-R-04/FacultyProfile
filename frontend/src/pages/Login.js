@@ -47,7 +47,7 @@ const Login = () => {
         <div className="login-card">
           <div className="login-header">
             <h1>Faculty Login</h1>
-            <p>Sign in to access your profile</p>
+            <p>admin@ssn.edu.in</p>
           </div>
 
           <form onSubmit={handleSubmit} className="login-form">
@@ -102,13 +102,7 @@ const Login = () => {
             </button>
           </form>
 
-          <div className="login-footer">
-            <p>
-              Demo Credentials:<br />
-              Manager: admin@ssn.edu.in / admin123<br />
-              Staff: mike.lee@ssn.edu.in / mike789
-            </p>
-          </div>
+
         </div>
       </div>
     </div>
