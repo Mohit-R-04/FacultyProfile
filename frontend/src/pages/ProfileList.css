@@ -19,7 +19,8 @@
 
 .page-header p {
   font-size: 1.1rem;
-  color: black;
+  color: #000000;
+  font-weight: 600;
   text-align: center;
 }
 
@@ -141,7 +142,7 @@
   position: relative;
   overflow: hidden;
   padding: 0;
-  margin: 0 auto;
+  margin: 15px auto 0;
   border-radius: 50%;
 }
 
