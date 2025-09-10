@@ -164,7 +164,9 @@ public class AuthController {
                 return ResponseEntity.badRequest().body(error);
             }
             
-            boolean success = emailService.resetPassword(token, newPassword);
+            // Encode the new password before passing to service
+            String encodedPassword = passwordEncoder.encode(newPassword);
+            boolean success = emailService.resetPassword(token, encodedPassword);
             
             if (success) {
                 Map<String, String> response = new HashMap<>();

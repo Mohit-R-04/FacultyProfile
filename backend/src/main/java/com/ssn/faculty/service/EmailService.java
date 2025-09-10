@@ -3,7 +3,6 @@ package com.ssn.faculty.service;
 import com.ssn.faculty.entity.EmailVerificationToken;
 import com.ssn.faculty.entity.PasswordResetToken;
 import com.ssn.faculty.entity.EmailAuditLog;
-import com.ssn.faculty.entity.EmailRateLimit;
 import com.ssn.faculty.entity.User;
 import com.ssn.faculty.repository.EmailVerificationTokenRepository;
 import com.ssn.faculty.repository.PasswordResetTokenRepository;
@@ -25,7 +24,6 @@ import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.Base64;
 import java.util.List;
-import java.util.Optional;
 import jakarta.servlet.http.HttpServletRequest;
 
 @Service
