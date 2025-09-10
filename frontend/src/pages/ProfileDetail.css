@@ -210,6 +210,40 @@
   font-weight: 500;
 }
 
+.document-item-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.document-item-container .document-item {
+  flex: 1;
+}
+
+.document-item-container .remove-file-btn {
+  padding: 6px 8px;
+  background: var(--danger-color);
+  color: white;
+  border: none;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  font-size: 12px;
+  transition: var(--transition);
+  flex-shrink: 0;
+}
+
+.document-item-container .remove-file-btn:hover {
+  background: #dc3545;
+  transform: scale(1.05);
+}
+
+.document-item-container .remove-file-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
 .modal-overlay {
   position: fixed;
   top: 0;

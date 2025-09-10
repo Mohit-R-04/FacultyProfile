@@ -289,4 +289,41 @@ public class FacultyProfileController {
             return ResponseEntity.badRequest().body(error);
         }
     }
+    
+    @DeleteMapping("/{id}/files/{fileType}")
+    @Operation(summary = "Remove file", description = "Remove a specific file from faculty profile")
+    public ResponseEntity<?> removeFile(
+            @PathVariable Long id,
+            @PathVariable String fileType,
+            Authentication authentication) {
+        try {
+            UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
+            
+            // Check if user can edit this profile
+            Optional<FacultyProfileDto> existingProfile = profileService.getProfileById(id);
+            if (existingProfile.isEmpty()) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "Profile not found");
+                return ResponseEntity.notFound().build();
+            }
+            
+            // Allow managers to edit any profile, or users to edit their own profile
+            if (userPrincipal.getRole() != Role.MANAGER && 
+                !existingProfile.get().getUserId().equals(userPrincipal.getId())) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "Unauthorized: Can only edit own profile");
+                return ResponseEntity.status(403).body(error);
+            }
+            
+            profileService.removeFile(id, fileType);
+            
+            Map<String, String> response = new HashMap<>();
+            response.put("message", "File removed successfully");
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", e.getMessage());
+            return ResponseEntity.badRequest().body(error);
+        }
+    }
 }

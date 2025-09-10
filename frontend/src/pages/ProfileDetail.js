@@ -1,15 +1,17 @@
 import React, { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { useQuery } from 'react-query';
+import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { profileAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
-import { FaUser, FaDownload, FaEdit, FaTrash, FaLock, FaUnlock } from 'react-icons/fa';
+import { FaUser, FaDownload, FaEdit, FaTrash, FaLock, FaUnlock, FaTimes } from 'react-icons/fa';
+import { toast } from 'react-toastify';
 import './ProfileDetail.css';
 
 const ProfileDetail = () => {
   const { id } = useParams();
   const { user, hasRole } = useAuth();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const queryClient = useQueryClient();
 
   const { data: profile, isLoading, error } = useQuery(
     ['profile', id],
@@ -43,6 +45,26 @@ const ProfileDetail = () => {
       alert('Edit request submitted successfully');
     } catch (error) {
       console.error('Edit request failed:', error);
+    }
+  };
+
+  const removeFileMutation = useMutation(
+    (fileType) => profileAPI.removeFile(id, fileType),
+    {
+      onSuccess: async () => {
+        await queryClient.invalidateQueries(['profile', id]);
+        await queryClient.refetchQueries(['profile', id]);
+        toast.success('File removed successfully!');
+      },
+      onError: (error) => {
+        toast.error(error.response?.data?.error || 'Failed to remove file');
+      },
+    }
+  );
+
+  const handleRemoveFile = (fileType) => {
+    if (window.confirm('Are you sure you want to remove this file?')) {
+      removeFileMutation.mutate(fileType);
     }
   };
 
@@ -189,20 +211,51 @@ const ProfileDetail = () => {
                 { key: 'communityCert', label: 'Community Certificate' },
                 { key: 'aadhar', label: 'Aadhar' },
                 { key: 'pan', label: 'PAN' },
-              ].map(({ key, label }) => (
-                profile[key] && (
-                  <a
-                    key={key}
-                    href={`${process.env.REACT_APP_API_URL || 'http://localhost:8080/api'}/files/download/${profile[key].replace('/uploads/', '')}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="document-item"
-                  >
-                    <FaDownload />
-                    <span>{label}</span>
-                  </a>
-                )
-              ))}
+              ].map(({ key, label }) => {
+                const fileType = key === 'tenthCert' ? 'tenth_cert' :
+                                key === 'twelfthCert' ? 'twelfth_cert' :
+                                key === 'appointmentOrder' ? 'appointment_order' :
+                                key === 'joiningReport' ? 'joining_report' :
+                                key === 'ugDegree' ? 'ug_degree' :
+                                key === 'pgMsConsolidated' ? 'pg_ms_consolidated' :
+                                key === 'phdDegree' ? 'phd_degree' :
+                                key === 'journalsList' ? 'journals_list' :
+                                key === 'conferencesList' ? 'conferences_list' :
+                                key === 'auSupervisorLetter' ? 'au_supervisor_letter' :
+                                key === 'fdpWorkshopsWebinars' ? 'fdp_workshops_webinars' :
+                                key === 'nptelCoursera' ? 'nptel_coursera' :
+                                key === 'invitedTalks' ? 'invited_talks' :
+                                key === 'projectsSanction' ? 'projects_sanction' :
+                                key === 'consultancy' ? 'consultancy' :
+                                key === 'patent' ? 'patent' :
+                                key === 'communityCert' ? 'community_cert' :
+                                key === 'aadhar' ? 'aadhar' :
+                                key === 'pan' ? 'pan' : key;
+
+                return profile[key] && (
+                  <div key={key} className="document-item-container">
+                    <a
+                      href={`${process.env.REACT_APP_API_URL || 'http://localhost:8080/api'}/files/download/${profile[key].replace('/uploads/', '')}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="document-item"
+                    >
+                      <FaDownload />
+                      <span>{label}</span>
+                    </a>
+                    {canEdit && !isLocked && (
+                      <button
+                        className="remove-file-btn"
+                        onClick={() => handleRemoveFile(fileType)}
+                        disabled={removeFileMutation.isLoading}
+                        title="Remove file"
+                      >
+                        <FaTimes />
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>

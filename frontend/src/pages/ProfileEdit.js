@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { profileAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'react-toastify';
-import { FaSave, FaSpinner, FaTimes } from 'react-icons/fa';
+import { FaSave, FaSpinner, FaTimes, FaTrash, FaFile } from 'react-icons/fa';
 import './ProfileEdit.css';
 
 const ProfileEdit = () => {
@@ -60,6 +60,20 @@ const ProfileEdit = () => {
     }
   );
 
+  const removeFileMutation = useMutation(
+    (fileType) => profileAPI.removeFile(id, fileType),
+    {
+      onSuccess: async () => {
+        await queryClient.invalidateQueries(['profile', id]);
+        await queryClient.refetchQueries(['profile', id]);
+        toast.success('File removed successfully!');
+      },
+      onError: (error) => {
+        toast.error(error.response?.data?.error || 'Failed to remove file');
+      },
+    }
+  );
+
   const handleChange = (e) => {
     setFormData({
       ...formData,
@@ -87,6 +101,17 @@ const ProfileEdit = () => {
   const handleSubmit = (e) => {
     e.preventDefault();
     updateMutation.mutate(formData);
+  };
+
+  const handleRemoveFile = (fileType) => {
+    if (window.confirm('Are you sure you want to remove this file?')) {
+      removeFileMutation.mutate(fileType);
+    }
+  };
+
+  const getFileName = (filePath) => {
+    if (!filePath) return null;
+    return filePath.split('/').pop();
   };
 
   if (isLoading) {
@@ -256,21 +281,59 @@ const ProfileEdit = () => {
                 { key: 'ug_degree', label: 'UG Degree Certificate', accept: '.pdf,.jpg,.jpeg,.png' },
                 { key: 'pg_ms_consolidated', label: 'PG/MS Consolidated', accept: '.pdf,.jpg,.jpeg,.png' },
                 { key: 'phd_degree', label: 'PhD Degree Certificate', accept: '.pdf,.jpg,.jpeg,.png' },
-              ].map(({ key, label, accept }) => (
-                <div key={key} className="form-group">
-                  <label htmlFor={key} className="form-label">
-                    {label}
-                  </label>
-                  <input
-                    type="file"
-                    id={key}
-                    name={key}
-                    accept={accept}
-                    onChange={handleFileChange}
-                    className="form-input"
-                  />
-                </div>
-              ))}
+                { key: 'journals_list', label: 'Journals List', accept: '.pdf,.jpg,.jpeg,.png' },
+                { key: 'conferences_list', label: 'Conferences List', accept: '.pdf,.jpg,.jpeg,.png' },
+                { key: 'au_supervisor_letter', label: 'AU Supervisor Letter', accept: '.pdf,.jpg,.jpeg,.png' },
+                { key: 'fdp_workshops_webinars', label: 'FDP/Workshops/Webinars', accept: '.pdf,.jpg,.jpeg,.png' },
+                { key: 'nptel_coursera', label: 'NPTEL/Coursera Certificates', accept: '.pdf,.jpg,.jpeg,.png' },
+                { key: 'invited_talks', label: 'Invited Talks', accept: '.pdf,.jpg,.jpeg,.png' },
+                { key: 'projects_sanction', label: 'Projects Sanction', accept: '.pdf,.jpg,.jpeg,.png' },
+                { key: 'consultancy', label: 'Consultancy', accept: '.pdf,.jpg,.jpeg,.png' },
+                { key: 'patent', label: 'Patent', accept: '.pdf,.jpg,.jpeg,.png' },
+                { key: 'community_cert', label: 'Community Certificate', accept: '.pdf,.jpg,.jpeg,.png' },
+                { key: 'aadhar', label: 'Aadhar Card', accept: '.pdf,.jpg,.jpeg,.png' },
+                { key: 'pan', label: 'PAN Card', accept: '.pdf,.jpg,.jpeg,.png' },
+              ].map(({ key, label, accept }) => {
+                const existingFile = profile[key];
+                const fileName = getFileName(existingFile);
+                
+                return (
+                  <div key={key} className="form-group">
+                    <label htmlFor={key} className="form-label">
+                      {label}
+                    </label>
+                    
+                    {existingFile && fileName && (
+                      <div className="existing-file">
+                        <div className="file-info">
+                          <FaFile className="file-icon" />
+                          <span className="file-name" title={fileName}>
+                            {fileName.length > 30 ? `${fileName.substring(0, 30)}...` : fileName}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          className="btn btn-danger btn-sm remove-file-btn"
+                          onClick={() => handleRemoveFile(key)}
+                          disabled={removeFileMutation.isLoading}
+                          title="Remove file"
+                        >
+                          <FaTrash />
+                        </button>
+                      </div>
+                    )}
+                    
+                    <input
+                      type="file"
+                      id={key}
+                      name={key}
+                      accept={accept}
+                      onChange={handleFileChange}
+                      className="form-input"
+                    />
+                  </div>
+                );
+              })}
             </div>
           </div>
 

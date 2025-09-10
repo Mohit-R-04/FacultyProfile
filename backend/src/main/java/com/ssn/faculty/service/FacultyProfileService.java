@@ -212,6 +212,115 @@ public class FacultyProfileService {
         logger.info("Edit request approved for profile: {}", profile.getName());
     }
     
+    public void removeFile(Long profileId, String fileType) {
+        FacultyProfile profile = profileRepository.findById(profileId)
+                .orElseThrow(() -> new RuntimeException("Profile not found"));
+        
+        // Check if profile is locked
+        if (profile.getIsLocked() && profile.getLockExpiry() != null && 
+            LocalDateTime.now().isBefore(profile.getLockExpiry())) {
+            throw new RuntimeException("Profile is locked. Please request edit access from admin.");
+        }
+        
+        String filePath = null;
+        
+        // Map file type to the appropriate field and get the file path
+        switch (fileType.toLowerCase()) {
+            case "profile_pic":
+                filePath = profile.getProfilePic();
+                profile.setProfilePic(null);
+                break;
+            case "tenth_cert":
+                filePath = profile.getTenthCert();
+                profile.setTenthCert(null);
+                break;
+            case "twelfth_cert":
+                filePath = profile.getTwelfthCert();
+                profile.setTwelfthCert(null);
+                break;
+            case "appointment_order":
+                filePath = profile.getAppointmentOrder();
+                profile.setAppointmentOrder(null);
+                break;
+            case "joining_report":
+                filePath = profile.getJoiningReport();
+                profile.setJoiningReport(null);
+                break;
+            case "ug_degree":
+                filePath = profile.getUgDegree();
+                profile.setUgDegree(null);
+                break;
+            case "pg_ms_consolidated":
+                filePath = profile.getPgMsConsolidated();
+                profile.setPgMsConsolidated(null);
+                break;
+            case "phd_degree":
+                filePath = profile.getPhdDegree();
+                profile.setPhdDegree(null);
+                break;
+            case "journals_list":
+                filePath = profile.getJournalsList();
+                profile.setJournalsList(null);
+                break;
+            case "conferences_list":
+                filePath = profile.getConferencesList();
+                profile.setConferencesList(null);
+                break;
+            case "au_supervisor_letter":
+                filePath = profile.getAuSupervisorLetter();
+                profile.setAuSupervisorLetter(null);
+                break;
+            case "fdp_workshops_webinars":
+                filePath = profile.getFdpWorkshopsWebinars();
+                profile.setFdpWorkshopsWebinars(null);
+                break;
+            case "nptel_coursera":
+                filePath = profile.getNptelCoursera();
+                profile.setNptelCoursera(null);
+                break;
+            case "invited_talks":
+                filePath = profile.getInvitedTalks();
+                profile.setInvitedTalks(null);
+                break;
+            case "projects_sanction":
+                filePath = profile.getProjectsSanction();
+                profile.setProjectsSanction(null);
+                break;
+            case "consultancy":
+                filePath = profile.getConsultancy();
+                profile.setConsultancy(null);
+                break;
+            case "patent":
+                filePath = profile.getPatent();
+                profile.setPatent(null);
+                break;
+            case "community_cert":
+                filePath = profile.getCommunityCert();
+                profile.setCommunityCert(null);
+                break;
+            case "aadhar":
+                filePath = profile.getAadhar();
+                profile.setAadhar(null);
+                break;
+            case "pan":
+                filePath = profile.getPan();
+                profile.setPan(null);
+                break;
+            default:
+                throw new RuntimeException("Invalid file type: " + fileType);
+        }
+        
+        // Delete the file from filesystem if it exists
+        if (filePath != null && !filePath.trim().isEmpty()) {
+            fileStorageService.deleteFile(filePath);
+            logger.info("File removed from filesystem: {}", filePath);
+        }
+        
+        // Save the updated profile
+        profileRepository.save(profile);
+        logger.info("File removed from profile: {} (type: {})", profile.getName(), fileType);
+    }
+    
     private void handleFileUploads(FacultyProfile profile, MultipartFile[] files) {
         if (files == null || files.length == 0) {
             logger.info("No files to upload for profile: {}", profile.getName());

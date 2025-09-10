@@ -102,20 +102,66 @@ public class FileStorageService {
     }
     
     public void deleteFile(String filePath) {
-        if (filePath == null || !filePath.startsWith("/uploads/")) {
+        if (filePath == null || filePath.trim().isEmpty()) {
+            logger.debug("No file path provided for deletion");
             return;
         }
         
+        // Handle both /uploads/ prefix and direct filename
+        String filename;
+        if (filePath.startsWith("/uploads/")) {
+            filename = filePath.substring("/uploads/".length());
+        } else {
+            filename = filePath;
+        }
+        
         try {
-            String filename = filePath.substring("/uploads/".length());
             Path file = Paths.get(uploadDir).resolve(filename).normalize();
+            
+            // Security check: ensure the file is within the upload directory
+            Path uploadPath = Paths.get(uploadDir).toAbsolutePath().normalize();
+            if (!file.startsWith(uploadPath)) {
+                logger.warn("Attempted to delete file outside upload directory: {}", filePath);
+                return;
+            }
             
             if (Files.exists(file)) {
                 Files.delete(file);
                 logger.info("File deleted successfully: {}", filename);
+            } else {
+                logger.warn("File not found for deletion: {}", filename);
             }
         } catch (IOException ex) {
             logger.error("Failed to delete file: {}", filePath, ex);
+            // Don't throw exception to avoid breaking the main operation
+        }
+    }
+    
+    public boolean fileExists(String filePath) {
+        if (filePath == null || filePath.trim().isEmpty()) {
+            return false;
+        }
+        
+        String filename;
+        if (filePath.startsWith("/uploads/")) {
+            filename = filePath.substring("/uploads/".length());
+        } else {
+            filename = filePath;
+        }
+        
+        try {
+            Path file = Paths.get(uploadDir).resolve(filename).normalize();
+            Path uploadPath = Paths.get(uploadDir).toAbsolutePath().normalize();
+            
+            // Security check
+            if (!file.startsWith(uploadPath)) {
+                return false;
+            }
+            
+            return Files.exists(file);
+        } catch (Exception ex) {
+            logger.error("Error checking file existence: {}", filePath, ex);
+            return false;
         }
     }
     

@@ -85,6 +85,60 @@
   gap: 20px;
 }
 
+.existing-file {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+  background: var(--gray-50);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--border-radius);
+  margin-bottom: 8px;
+}
+
+[data-theme="dark"] .existing-file {
+  background: var(--gray-700);
+  border-color: var(--gray-600);
+}
+
+.file-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.file-icon {
+  color: var(--primary-color);
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.file-name {
+  font-size: 0.9rem;
+  color: var(--gray-700);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+[data-theme="dark"] .file-name {
+  color: var(--gray-300);
+}
+
+.remove-file-btn {
+  padding: 6px 8px;
+  font-size: 0.8rem;
+  min-width: auto;
+  flex-shrink: 0;
+}
+
+.remove-file-btn:hover {
+  background: var(--danger-color);
+  border-color: var(--danger-color);
+}
+
 .form-actions {
   padding: 30px;
   background: var(--gray-100);
