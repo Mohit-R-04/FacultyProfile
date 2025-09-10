@@ -119,6 +119,9 @@ export const profileAPI = {
   
   approveEdit: (id) => 
     api.post(`/profiles/${id}/approve-edit`).then(res => res.data),
+  
+  addFaculty: (facultyData) => 
+    api.post('/profiles/add-faculty', facultyData).then(res => res.data),
 };
 
 // File API

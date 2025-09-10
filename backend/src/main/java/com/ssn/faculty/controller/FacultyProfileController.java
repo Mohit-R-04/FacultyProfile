@@ -1,9 +1,11 @@
 package com.ssn.faculty.controller;
 
 import com.ssn.faculty.dto.FacultyProfileDto;
+import com.ssn.faculty.dto.AddFacultyRequest;
 import com.ssn.faculty.entity.Role;
 import com.ssn.faculty.security.UserPrincipal;
 import com.ssn.faculty.service.FacultyProfileService;
+import com.ssn.faculty.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -30,6 +32,9 @@ public class FacultyProfileController {
     @Autowired
     private FacultyProfileService profileService;
     
+    @Autowired
+    private UserService userService;
+    
     @GetMapping
     @Operation(summary = "Get all profiles", description = "Retrieve all faculty profiles (public access)")
     public ResponseEntity<List<FacultyProfileDto>> getAllProfiles() {
@@ -47,6 +52,46 @@ public class FacultyProfileController {
             Map<String, String> error = new HashMap<>();
             error.put("error", "Profile not found");
             return ResponseEntity.notFound().build();
+        }
+    }
+    
+    @PostMapping("/add-faculty")
+    @PreAuthorize("hasRole('MANAGER')")
+    @Operation(summary = "Add new faculty member", description = "Create a new faculty member with user account and profile (Manager only)")
+    public ResponseEntity<?> addFacultyMember(@RequestBody AddFacultyRequest request) {
+        try {
+            // Create faculty member with user account and profile
+            var user = userService.createFacultyMember(
+                request.getName(),
+                request.getEmail(),
+                request.getPassword(),
+                request.getPhoneNumber(),
+                request.getDepartment(),
+                request.getRole(),
+                request.getBio(),
+                request.getQualifications(),
+                request.getExperience(),
+                request.getResearch(),
+                request.getDateOfJoining()
+            );
+            
+            // Get the created profile
+            Optional<FacultyProfileDto> createdProfile = profileService.getProfileById(user.getProfile().getId());
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "Faculty member added successfully");
+            response.put("user", Map.of(
+                "id", user.getId(),
+                "email", user.getEmail(),
+                "role", user.getRole()
+            ));
+            response.put("profile", createdProfile.orElse(null));
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", e.getMessage());
+            return ResponseEntity.badRequest().body(error);
         }
     }
     

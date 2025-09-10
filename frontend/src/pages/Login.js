@@ -47,7 +47,7 @@ const Login = () => {
         <div className="login-card">
           <div className="login-header">
             <h1>Faculty Login</h1>
-            <p>admin@ssn.edu.in</p>
+            <p>Enter your credentials to access the system</p>
           </div>
 
           <form onSubmit={handleSubmit} className="login-form">

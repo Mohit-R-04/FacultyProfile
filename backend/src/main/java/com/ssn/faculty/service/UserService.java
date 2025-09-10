@@ -112,4 +112,31 @@ public class UserService {
         userRepository.deleteById(id);
         logger.info("User deleted: {}", id);
     }
+    
+    public User createFacultyMember(String name, String email, String password, String phoneNumber, 
+                                   String department, String role, String bio, String qualifications, 
+                                   String experience, String research, String dateOfJoining) {
+        // Create user with STAFF role
+        User user = createUser(email, password, phoneNumber, Role.STAFF);
+        
+        // Create profile for the user
+        FacultyProfile profile = new FacultyProfile(user, name);
+        profile.setDepartment(department);
+        profile.setRole(role);
+        profile.setBio(bio);
+        profile.setQualifications(qualifications);
+        profile.setExperience(experience);
+        profile.setResearch(research);
+        profile.setDateOfJoining(dateOfJoining);
+        
+        user.setProfile(profile);
+        
+        User savedUser = userRepository.save(user);
+        
+        // Send registration email
+        emailService.sendRegistrationEmail(email, name, password);
+        
+        logger.info("Faculty member created successfully: {} ({})", name, email);
+        return savedUser;
+    }
 }

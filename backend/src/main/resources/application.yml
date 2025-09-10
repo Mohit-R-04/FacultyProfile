@@ -79,3 +79,23 @@ cors:
   allowed-methods: GET,POST,PUT,DELETE,OPTIONS
   allowed-headers: "*"
   allow-credentials: true
+
+# Application Configuration
+app:
+  base-url: ${APP_BASE_URL:http://localhost:3000}
+
+# Email Security Configuration
+email:
+  verification:
+    enabled: ${EMAIL_VERIFICATION_ENABLED:true}
+    expiry-hours: ${EMAIL_VERIFICATION_EXPIRY_HOURS:24}
+  password-reset:
+    enabled: ${EMAIL_PASSWORD_RESET_ENABLED:true}
+    expiry-hours: ${EMAIL_PASSWORD_RESET_EXPIRY_HOURS:1}
+  rate-limit:
+    per-hour: ${EMAIL_RATE_LIMIT_PER_HOUR:10}
+    per-day: ${EMAIL_RATE_LIMIT_PER_DAY:50}
+    ip-multiplier: ${EMAIL_RATE_LIMIT_IP_MULTIPLIER:2}
+  audit:
+    retention-days: ${EMAIL_AUDIT_RETENTION_DAYS:90}
+    cleanup-enabled: ${EMAIL_AUDIT_CLEANUP_ENABLED:true}

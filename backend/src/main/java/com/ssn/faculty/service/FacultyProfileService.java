@@ -86,38 +86,56 @@ public class FacultyProfileService {
             throw new RuntimeException("Profile is locked. Please request edit access from admin.");
         }
         
-        // Update basic information
-        profile.setName(profileDto.getName());
-        profile.setBio(profileDto.getBio());
-        profile.setQualifications(profileDto.getQualifications());
-        profile.setExperience(profileDto.getExperience());
-        profile.setResearch(profileDto.getResearch());
-        
-        // Update user information if provided
-        if (profileDto.getEmail() != null || profileDto.getPhoneNumber() != null) {
-            User user = profile.getUser();
-            if (profileDto.getEmail() != null) {
-                if (userRepository.existsByEmail(profileDto.getEmail()) && 
-                    !user.getEmail().equals(profileDto.getEmail())) {
-                    throw new RuntimeException("Email already exists for another user");
+        try {
+            // Update basic information
+            if (profileDto.getName() != null) {
+                profile.setName(profileDto.getName());
+            }
+            if (profileDto.getBio() != null) {
+                profile.setBio(profileDto.getBio());
+            }
+            if (profileDto.getQualifications() != null) {
+                profile.setQualifications(profileDto.getQualifications());
+            }
+            if (profileDto.getExperience() != null) {
+                profile.setExperience(profileDto.getExperience());
+            }
+            if (profileDto.getResearch() != null) {
+                profile.setResearch(profileDto.getResearch());
+            }
+            
+            // Update user information if provided
+            if (profileDto.getEmail() != null || profileDto.getPhoneNumber() != null) {
+                User user = profile.getUser();
+                if (profileDto.getEmail() != null && !profileDto.getEmail().trim().isEmpty()) {
+                    if (userRepository.existsByEmail(profileDto.getEmail()) && 
+                        !user.getEmail().equals(profileDto.getEmail())) {
+                        throw new RuntimeException("Email already exists for another user");
+                    }
+                    user.setEmail(profileDto.getEmail());
                 }
-                user.setEmail(profileDto.getEmail());
+                if (profileDto.getPhoneNumber() != null) {
+                    user.setPhoneNumber(profileDto.getPhoneNumber());
+                }
+                userRepository.save(user);
+                logger.info("User information updated for profile: {}", profile.getName());
             }
-            if (profileDto.getPhoneNumber() != null) {
-                user.setPhoneNumber(profileDto.getPhoneNumber());
+            
+            // Handle file uploads
+            if (files != null && files.length > 0) {
+                handleFileUploads(profile, files);
             }
-            userRepository.save(user);
+            
+            // Save the profile
+            FacultyProfile savedProfile = profileRepository.save(profile);
+            logger.info("Profile updated successfully: {} (ID: {})", savedProfile.getName(), savedProfile.getId());
+            
+            return convertToDto(savedProfile);
+            
+        } catch (Exception e) {
+            logger.error("Failed to update profile: {}", profile.getName(), e);
+            throw new RuntimeException("Failed to update profile: " + e.getMessage(), e);
         }
-        
-        // Handle file uploads
-        if (files != null) {
-            handleFileUploads(profile, files);
-        }
-        
-        FacultyProfile savedProfile = profileRepository.save(profile);
-        logger.info("Profile updated successfully: {}", savedProfile.getName());
-        
-        return convertToDto(savedProfile);
     }
     
     public void deleteProfile(Long id) {
@@ -196,59 +214,100 @@ public class FacultyProfileService {
     
     private void handleFileUploads(FacultyProfile profile, MultipartFile[] files) {
         if (files == null || files.length == 0) {
+            logger.info("No files to upload for profile: {}", profile.getName());
             return;
         }
+        
+        logger.info("Processing {} files for profile: {}", files.length, profile.getName());
         
         // Map files to their respective fields based on parameter names
         for (MultipartFile file : files) {
             if (file != null && !file.isEmpty()) {
                 String originalFilename = file.getOriginalFilename();
-                if (originalFilename == null) continue;
+                if (originalFilename == null) {
+                    logger.warn("Skipping file with null filename");
+                    continue;
+                }
                 
-                String filePath = fileStorageService.storeFile(file);
-                
-                // Map file to appropriate field based on filename or parameter name
-                String lowerFilename = originalFilename.toLowerCase();
-                if (lowerFilename.contains("profile") || lowerFilename.contains("pic") || lowerFilename.contains("photo")) {
-                    profile.setProfilePic(filePath);
-                } else if (lowerFilename.contains("tenth") || lowerFilename.contains("10th")) {
-                    profile.setTenthCert(filePath);
-                } else if (lowerFilename.contains("twelfth") || lowerFilename.contains("12th")) {
-                    profile.setTwelfthCert(filePath);
-                } else if (lowerFilename.contains("appointment")) {
-                    profile.setAppointmentOrder(filePath);
-                } else if (lowerFilename.contains("joining")) {
-                    profile.setJoiningReport(filePath);
-                } else if (lowerFilename.contains("ug") || lowerFilename.contains("undergraduate")) {
-                    profile.setUgDegree(filePath);
-                } else if (lowerFilename.contains("pg") || lowerFilename.contains("ms") || lowerFilename.contains("postgraduate")) {
-                    profile.setPgMsConsolidated(filePath);
-                } else if (lowerFilename.contains("phd") || lowerFilename.contains("doctorate")) {
-                    profile.setPhdDegree(filePath);
-                } else if (lowerFilename.contains("journal")) {
-                    profile.setJournalsList(filePath);
-                } else if (lowerFilename.contains("conference")) {
-                    profile.setConferencesList(filePath);
-                } else if (lowerFilename.contains("supervisor")) {
-                    profile.setAuSupervisorLetter(filePath);
-                } else if (lowerFilename.contains("fdp") || lowerFilename.contains("workshop") || lowerFilename.contains("webinar")) {
-                    profile.setFdpWorkshopsWebinars(filePath);
-                } else if (lowerFilename.contains("nptel") || lowerFilename.contains("coursera")) {
-                    profile.setNptelCoursera(filePath);
-                } else if (lowerFilename.contains("invited") || lowerFilename.contains("talk")) {
-                    profile.setInvitedTalks(filePath);
-                } else if (lowerFilename.contains("project") || lowerFilename.contains("sanction")) {
-                    profile.setProjectsSanction(filePath);
-                } else if (lowerFilename.contains("consultancy")) {
-                    profile.setConsultancy(filePath);
-                } else if (lowerFilename.contains("patent")) {
-                    profile.setPatent(filePath);
-                } else if (lowerFilename.contains("community")) {
-                    profile.setCommunityCert(filePath);
-                } else if (lowerFilename.contains("aadhar")) {
-                    profile.setAadhar(filePath);
-                } else if (lowerFilename.contains("pan")) {
-                    profile.setPan(filePath);
+                try {
+                    String filePath = fileStorageService.storeFile(file);
+                    logger.info("File stored successfully: {} -> {}", originalFilename, filePath);
+                    
+                    // Map file to appropriate field based on filename or parameter name
+                    String lowerFilename = originalFilename.toLowerCase();
+                    boolean mapped = false;
+                    
+                    if (lowerFilename.contains("profile") || lowerFilename.contains("pic") || lowerFilename.contains("photo")) {
+                        profile.setProfilePic(filePath);
+                        mapped = true;
+                    } else if (lowerFilename.contains("tenth") || lowerFilename.contains("10th")) {
+                        profile.setTenthCert(filePath);
+                        mapped = true;
+                    } else if (lowerFilename.contains("twelfth") || lowerFilename.contains("12th")) {
+                        profile.setTwelfthCert(filePath);
+                        mapped = true;
+                    } else if (lowerFilename.contains("appointment")) {
+                        profile.setAppointmentOrder(filePath);
+                        mapped = true;
+                    } else if (lowerFilename.contains("joining")) {
+                        profile.setJoiningReport(filePath);
+                        mapped = true;
+                    } else if (lowerFilename.contains("ug") || lowerFilename.contains("undergraduate")) {
+                        profile.setUgDegree(filePath);
+                        mapped = true;
+                    } else if (lowerFilename.contains("pg") || lowerFilename.contains("ms") || lowerFilename.contains("postgraduate")) {
+                        profile.setPgMsConsolidated(filePath);
+                        mapped = true;
+                    } else if (lowerFilename.contains("phd") || lowerFilename.contains("doctorate")) {
+                        profile.setPhdDegree(filePath);
+                        mapped = true;
+                    } else if (lowerFilename.contains("journal")) {
+                        profile.setJournalsList(filePath);
+                        mapped = true;
+                    } else if (lowerFilename.contains("conference")) {
+                        profile.setConferencesList(filePath);
+                        mapped = true;
+                    } else if (lowerFilename.contains("supervisor")) {
+                        profile.setAuSupervisorLetter(filePath);
+                        mapped = true;
+                    } else if (lowerFilename.contains("fdp") || lowerFilename.contains("workshop") || lowerFilename.contains("webinar")) {
+                        profile.setFdpWorkshopsWebinars(filePath);
+                        mapped = true;
+                    } else if (lowerFilename.contains("nptel") || lowerFilename.contains("coursera")) {
+                        profile.setNptelCoursera(filePath);
+                        mapped = true;
+                    } else if (lowerFilename.contains("invited") || lowerFilename.contains("talk")) {
+                        profile.setInvitedTalks(filePath);
+                        mapped = true;
+                    } else if (lowerFilename.contains("project") || lowerFilename.contains("sanction")) {
+                        profile.setProjectsSanction(filePath);
+                        mapped = true;
+                    } else if (lowerFilename.contains("consultancy")) {
+                        profile.setConsultancy(filePath);
+                        mapped = true;
+                    } else if (lowerFilename.contains("patent")) {
+                        profile.setPatent(filePath);
+                        mapped = true;
+                    } else if (lowerFilename.contains("community")) {
+                        profile.setCommunityCert(filePath);
+                        mapped = true;
+                    } else if (lowerFilename.contains("aadhar")) {
+                        profile.setAadhar(filePath);
+                        mapped = true;
+                    } else if (lowerFilename.contains("pan")) {
+                        profile.setPan(filePath);
+                        mapped = true;
+                    }
+                    
+                    if (mapped) {
+                        logger.info("File mapped to profile field: {} -> {}", originalFilename, filePath);
+                    } else {
+                        logger.warn("File could not be mapped to any profile field: {}", originalFilename);
+                    }
+                    
+                } catch (Exception e) {
+                    logger.error("Failed to store file: {}", originalFilename, e);
+                    throw new RuntimeException("Failed to store file " + originalFilename + ": " + e.getMessage(), e);
                 }
             }
         }

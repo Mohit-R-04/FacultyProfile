@@ -33,32 +33,41 @@ public class FileStorageService {
     private final List<String> allowedExtensions = Arrays.asList("pdf", "jpg", "jpeg", "png", "doc", "docx");
     
     public String storeFile(MultipartFile file) {
-        if (file.isEmpty()) {
+        if (file == null || file.isEmpty()) {
             throw new RuntimeException("Failed to store empty file");
         }
         
         // Validate file extension
         String originalFilename = file.getOriginalFilename();
-        if (originalFilename == null) {
-            throw new RuntimeException("File name cannot be null");
+        if (originalFilename == null || originalFilename.trim().isEmpty()) {
+            throw new RuntimeException("File name cannot be null or empty");
         }
         originalFilename = StringUtils.cleanPath(originalFilename);
         String extension = getFileExtension(originalFilename);
         
-        if (!allowedExtensions.contains(extension.toLowerCase())) {
-            throw new RuntimeException("File type not allowed: " + extension);
+        if (extension.isEmpty() || !allowedExtensions.contains(extension.toLowerCase())) {
+            throw new RuntimeException("File type not allowed: " + extension + ". Allowed types: " + allowedExtensions);
         }
         
         // Validate file size
-        if (file.getSize() > parseFileSize(maxFileSize)) {
-            throw new RuntimeException("File size too large. Maximum allowed: " + maxFileSize);
+        long maxSize = parseFileSize(maxFileSize);
+        if (file.getSize() > maxSize) {
+            throw new RuntimeException("File size too large. Maximum allowed: " + maxFileSize + ", actual size: " + (file.getSize() / 1024 / 1024) + "MB");
         }
         
         try {
             // Create upload directory if it doesn't exist
-            Path uploadPath = Paths.get(uploadDir);
+            Path uploadPath = Paths.get(uploadDir).toAbsolutePath().normalize();
+            logger.info("Upload directory: {}", uploadPath);
+            
             if (!Files.exists(uploadPath)) {
+                logger.info("Creating upload directory: {}", uploadPath);
                 Files.createDirectories(uploadPath);
+            }
+            
+            // Check if directory is writable
+            if (!Files.isWritable(uploadPath)) {
+                throw new RuntimeException("Upload directory is not writable: " + uploadPath);
             }
             
             // Generate unique filename
@@ -68,12 +77,12 @@ public class FileStorageService {
             // Copy file to target location
             Files.copy(file.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING);
             
-            logger.info("File stored successfully: {}", uniqueFilename);
+            logger.info("File stored successfully: {} -> {}", originalFilename, uniqueFilename);
             return "/uploads/" + uniqueFilename;
             
         } catch (IOException ex) {
             logger.error("Failed to store file: {}", originalFilename, ex);
-            throw new RuntimeException("Failed to store file " + originalFilename, ex);
+            throw new RuntimeException("Failed to store file " + originalFilename + ": " + ex.getMessage(), ex);
         }
     }
     

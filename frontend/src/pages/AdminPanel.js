@@ -2,11 +2,13 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { profileAPI } from '../services/api';
 import { toast } from 'react-toastify';
-import { FaUsers, FaLock, FaUnlock, FaCheck, FaSpinner } from 'react-icons/fa';
+import { FaUsers, FaLock, FaUnlock, FaCheck, FaSpinner, FaUserPlus } from 'react-icons/fa';
+import AddFacultyModal from '../components/AddFacultyModal';
 import './AdminPanel.css';
 
 const AdminPanel = () => {
   const [selectedProfiles, setSelectedProfiles] = useState([]);
+  const [showAddFacultyModal, setShowAddFacultyModal] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: profiles, isLoading } = useQuery(
@@ -135,6 +137,19 @@ const AdminPanel = () => {
 
         <div className="admin-actions">
           <div className="action-group">
+            <h3>Faculty Management</h3>
+            <div className="action-buttons">
+              <button
+                className="btn btn-primary"
+                onClick={() => setShowAddFacultyModal(true)}
+              >
+                <FaUserPlus />
+                Add Faculty Member
+              </button>
+            </div>
+          </div>
+          
+          <div className="action-group">
             <h3>Bulk Actions</h3>
             <div className="action-buttons">
               <button
@@ -248,6 +263,11 @@ const AdminPanel = () => {
           </div>
         </div>
       </div>
+      
+      <AddFacultyModal 
+        isOpen={showAddFacultyModal}
+        onClose={() => setShowAddFacultyModal(false)}
+      />
     </div>
   );
 };
