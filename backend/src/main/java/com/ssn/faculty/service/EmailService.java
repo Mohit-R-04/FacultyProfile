@@ -1,10 +1,12 @@
 package com.ssn.faculty.service;
 
 import com.ssn.faculty.entity.EmailVerificationToken;
+import com.ssn.faculty.entity.EmailOtp;
 import com.ssn.faculty.entity.PasswordResetToken;
 import com.ssn.faculty.entity.EmailAuditLog;
 import com.ssn.faculty.entity.User;
 import com.ssn.faculty.repository.EmailVerificationTokenRepository;
+import com.ssn.faculty.repository.EmailOtpRepository;
 import com.ssn.faculty.repository.PasswordResetTokenRepository;
 import com.ssn.faculty.repository.EmailAuditLogRepository;
 import com.ssn.faculty.repository.EmailRateLimitRepository;
@@ -46,6 +48,9 @@ public class EmailService {
     @Autowired
     private EmailRateLimitRepository rateLimitRepository;
     
+    @Autowired
+    private EmailOtpRepository emailOtpRepository;
+    
     @Value("${spring.mail.username}")
     private String fromEmail;
     
@@ -57,6 +62,9 @@ public class EmailService {
     
     @Value("${email.password-reset.expiry-hours:1}")
     private int passwordResetExpiryHours;
+    
+    @Value("${email.otp.expiry-minutes:10}")
+    private int otpExpiryMinutes;
     
     @Value("${email.rate-limit.per-hour:10}")
     private int rateLimitPerHour;
@@ -143,6 +151,60 @@ public class EmailService {
         } catch (MessagingException e) {
             logger.error("Failed to send verification email to: {}", user.getEmail(), e);
         }
+    }
+
+    // OTP for email verification
+    @Transactional
+    public EmailOtp createOrRefreshOtp(User user) {
+        emailOtpRepository.deleteByUserId(user.getId());
+        String otp = String.format("%06d", new java.security.SecureRandom().nextInt(1_000_000));
+        LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(otpExpiryMinutes);
+        EmailOtp emailOtp = new EmailOtp(user, otp, expiresAt);
+        return emailOtpRepository.save(emailOtp);
+    }
+
+    @Async
+    public void sendVerificationOtp(User user) {
+        try {
+            EmailOtp otp = createOrRefreshOtp(user);
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            helper.setFrom(fromEmail);
+            helper.setTo(user.getEmail());
+            helper.setSubject("Your SSN Faculty Profile OTP");
+            String name = user.getProfile() != null ? user.getProfile().getName() : user.getEmail();
+            String htmlContent = String.format("""
+                <div style=\"font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;\">
+                    <h2 style=\"color: #2c3e50;\">Email Verification OTP</h2>
+                    <p>Dear %s,</p>
+                    <p>Your One-Time Password (OTP) is:</p>
+                    <div style=\"background:#f1f5f9; padding:16px; border-radius:8px; text-align:center; font-size:28px; letter-spacing:6px; font-weight:bold;\">%s</div>
+                    <p style=\"color:#64748b;\">This OTP will expire in %d minutes.</p>
+                    <p>If you did not request this, you can ignore this email.</p>
+                </div>
+            """, name, otp.getOtpCode(), otpExpiryMinutes);
+            helper.setText(htmlContent, true);
+            mailSender.send(message);
+            logger.info("OTP email sent to {}", user.getEmail());
+        } catch (MessagingException e) {
+            logger.error("Failed to send OTP to {}", user.getEmail(), e);
+        }
+    }
+
+    @Transactional
+    public boolean verifyOtp(User user, String otpCode) {
+        EmailOtp emailOtp = emailOtpRepository.findByUserId(user.getId()).orElse(null);
+        if (emailOtp == null) return false;
+        if (emailOtp.isExpired()) {
+            emailOtpRepository.delete(emailOtp);
+            return false;
+        }
+        boolean match = emailOtp.getOtpCode().equals(otpCode);
+        if (match) {
+            emailOtpRepository.delete(emailOtp);
+            user.setIsEmailVerified(true);
+        }
+        return match;
     }
     
     @Transactional

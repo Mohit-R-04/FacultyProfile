@@ -51,6 +51,12 @@ public class UserService {
         
         UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
         User user = userRepository.findById(userPrincipal.getId()).orElseThrow();
+        if (Boolean.FALSE.equals(user.getIsEmailVerified())) {
+            throw new RuntimeException("Email not verified");
+        }
+        if (Boolean.FALSE.equals(user.getIsApproved())) {
+            throw new RuntimeException("Account pending admin approval");
+        }
         
         return new LoginResponse(
                 jwt,

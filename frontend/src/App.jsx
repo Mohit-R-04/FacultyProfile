@@ -5,6 +5,8 @@ import { ThemeProvider } from './contexts/ThemeContext';
 import Navbar from './components/Navbar';
 import Home from './pages/Home';
 import Login from './pages/Login';
+import Register from './pages/Register';
+import VerifyOtp from './pages/VerifyOtp';
 import ProfileList from './pages/ProfileList';
 import ProfileDetail from './pages/ProfileDetail';
 import ProfileEdit from './pages/ProfileEdit';
@@ -22,6 +24,8 @@ function App() {
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/verify-otp" element={<VerifyOtp />} />
               <Route path="/profiles" element={<ProfileList />} />
               <Route path="/profiles/:id" element={<ProfileDetail />} />
               <Route 

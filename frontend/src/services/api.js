@@ -43,6 +43,15 @@ export const authAPI = {
   
   getCurrentUser: () => 
     api.get('/auth/me').then(res => res.data),
+
+  register: (email, password) =>
+    api.post('/auth/register', null, { params: { email, password } }).then(res => res.data),
+
+  verifyOtp: (email, otp) =>
+    api.post('/auth/verify-otp', null, { params: { email, otp } }).then(res => res.data),
+
+  resendOtp: (email) =>
+    api.post('/auth/resend-otp', null, { params: { email } }).then(res => res.data),
 };
 
 // Profile API

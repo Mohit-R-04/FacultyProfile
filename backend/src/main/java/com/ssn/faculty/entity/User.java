@@ -36,6 +36,12 @@ public class User {
     
     @Column(name = "is_active")
     private Boolean isActive = true;
+
+    @Column(name = "is_email_verified")
+    private Boolean isEmailVerified = false;
+
+    @Column(name = "is_approved")
+    private Boolean isApproved = false;
     
     @CreationTimestamp
     @Column(name = "created_at")
@@ -105,6 +111,22 @@ public class User {
     
     public void setIsActive(Boolean isActive) {
         this.isActive = isActive;
+    }
+
+    public Boolean getIsEmailVerified() {
+        return isEmailVerified;
+    }
+
+    public void setIsEmailVerified(Boolean isEmailVerified) {
+        this.isEmailVerified = isEmailVerified;
+    }
+
+    public Boolean getIsApproved() {
+        return isApproved;
+    }
+
+    public void setIsApproved(Boolean isApproved) {
+        this.isApproved = isApproved;
     }
     
     public LocalDateTime getCreatedAt() {

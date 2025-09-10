@@ -3,6 +3,7 @@ package com.ssn.faculty.controller;
 import com.ssn.faculty.dto.LoginRequest;
 import com.ssn.faculty.dto.LoginResponse;
 import com.ssn.faculty.entity.User;
+import com.ssn.faculty.entity.Role;
 import com.ssn.faculty.security.UserPrincipal;
 import com.ssn.faculty.service.UserService;
 import com.ssn.faculty.service.EmailService;
@@ -45,6 +46,82 @@ public class AuthController {
             error.put("error", "Invalid email or password");
             return ResponseEntity.badRequest().body(error);
         }
+    }
+
+    @PostMapping("/register")
+    @Operation(summary = "Register new user", description = "Create account for SSN faculty with domain check and send OTP")
+    public ResponseEntity<?> register(@RequestParam String email, @RequestParam String password) {
+        try {
+            if (email == null || !email.toLowerCase().endsWith("@ssn.edu.in")) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "Registration allowed only for ssn.edu.in emails");
+                return ResponseEntity.badRequest().body(error);
+            }
+            // Minimal user creation, inactive until verification and approval
+            var existing = userService.findByEmail(email);
+            if (existing.isPresent()) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "Email already registered");
+                return ResponseEntity.badRequest().body(error);
+            }
+            User user = userService.createUser(email, password, null, Role.STAFF);
+            user.setIsActive(true);
+            user.setIsEmailVerified(false);
+            user.setIsApproved(false);
+            userService.updateUser(user);
+            emailService.sendVerificationOtp(user);
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "OTP sent to your email. Verify to continue");
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Registration failed");
+            return ResponseEntity.badRequest().body(error);
+        }
+    }
+
+    @PostMapping("/verify-otp")
+    @Operation(summary = "Verify email OTP", description = "Verify OTP and mark email verified")
+    public ResponseEntity<?> verifyOtp(@RequestParam String email, @RequestParam String otp) {
+        try {
+            var userOpt = userService.findByEmail(email);
+            if (userOpt.isEmpty()) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "User not found");
+                return ResponseEntity.badRequest().body(error);
+            }
+            User user = userOpt.get();
+            boolean ok = emailService.verifyOtp(user, otp);
+            if (!ok) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "Invalid or expired OTP");
+                return ResponseEntity.badRequest().body(error);
+            }
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "Email verified. Awaiting admin approval");
+            response.put("emailVerified", true);
+            response.put("approved", user.getIsApproved());
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "OTP verification failed");
+            return ResponseEntity.badRequest().body(error);
+        }
+    }
+
+    @PostMapping("/resend-otp")
+    @Operation(summary = "Resend OTP", description = "Resend email verification OTP")
+    public ResponseEntity<?> resendOtp(@RequestParam String email) {
+        var userOpt = userService.findByEmail(email);
+        if (userOpt.isEmpty()) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "User not found");
+            return ResponseEntity.badRequest().body(error);
+        }
+        emailService.sendVerificationOtp(userOpt.get());
+        Map<String, String> response = new HashMap<>();
+        response.put("message", "OTP resent");
+        return ResponseEntity.ok(response);
     }
     
     @GetMapping("/me")
